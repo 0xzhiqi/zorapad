@@ -1,103 +1,311 @@
-import Image from "next/image";
+'use client';
 
-export default function Home() {
+import React, { useEffect, useState } from 'react';
+
+import {
+  ArrowRight,
+  BookOpen,
+  Feather,
+  Globe,
+  Heart,
+  Menu,
+  MessageCircle,
+  Pen,
+  Star,
+  TrendingUp,
+  Users,
+  X,
+  Zap,
+} from 'lucide-react';
+
+const ZoraPadHomepage = () => {
+  const [isVisible, setIsVisible] = useState(false);
+  const [activeFeature, setActiveFeature] = useState(0);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
+  useEffect(() => {
+    setIsVisible(true);
+  }, []);
+
+  const features = [
+    {
+      icon: <Pen className="h-8 w-8" />,
+      title: 'Write Freely',
+      description: 'Create captivating fanfiction with our intuitive editor',
+    },
+    {
+      icon: <Users className="h-8 w-8" />,
+      title: 'Get Feedback',
+      description: 'Receive real-time comments and suggestions from readers',
+    },
+    {
+      icon: <Globe className="h-8 w-8" />,
+      title: 'Share Publicly',
+      description: 'Build your audience and connect with fellow writers',
+    },
+  ];
+
+  const trendingStories = [
+    { title: "The Last Airbender's Return", author: 'SkyWriter23', likes: 1542, comments: 89 },
+    { title: 'Hogwarts After Dark', author: 'MagicQuill', likes: 2103, comments: 156 },
+    { title: 'Marvel: What If Loki Won?', author: 'MischievousInk', likes: 987, comments: 67 },
+    { title: 'Pokémon: The Forgotten Region', author: 'TrainerTales', likes: 1876, comments: 134 },
+  ];
+
   return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm/6 text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-[family-name:var(--font-geist-mono)] font-semibold">
-              src/app/page.tsx
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
+    <div className="relative min-h-screen overflow-hidden bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900">
+      {/* SVG Gradient Definition */}
+      <svg width="0" height="0" className="absolute">
+        <defs>
+          <linearGradient id="featherGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stopColor="#f472b6" />
+            <stop offset="100%" stopColor="#a78bfa" />
+          </linearGradient>
+        </defs>
+      </svg>
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
+      {/* Animated Background Elements */}
+      <div className="absolute inset-0 overflow-hidden">
+        <div className="absolute top-1/4 left-1/4 h-96 w-96 animate-pulse rounded-full bg-gradient-to-r from-pink-500/20 to-violet-500/20 blur-3xl" />
+        <div className="absolute top-1/4 right-1/4 h-72 w-72 rounded-full bg-gradient-to-r from-cyan-500/15 to-blue-500/15 blur-2xl" />
+        <div className="absolute bottom-1/4 left-1/4 h-80 w-80 animate-pulse rounded-full bg-gradient-to-r from-emerald-500/10 to-teal-500/10 blur-3xl" />
+      </div>
+
+      {/* Floating Particles */}
+      <div className="absolute inset-0">
+        <div
+          className="absolute top-1/4 left-1/3 h-2 w-2 animate-ping rounded-full bg-white/20"
+          style={{ animationDelay: '0s', animationDuration: '3s' }}
+        />
+        <div
+          className="absolute top-1/2 right-1/4 h-2 w-2 animate-ping rounded-full bg-white/20"
+          style={{ animationDelay: '1s', animationDuration: '4s' }}
+        />
+        <div
+          className="absolute bottom-1/3 left-1/4 h-2 w-2 animate-ping rounded-full bg-white/20"
+          style={{ animationDelay: '2s', animationDuration: '5s' }}
+        />
+        <div
+          className="absolute top-3/4 right-1/3 h-2 w-2 animate-ping rounded-full bg-white/20"
+          style={{ animationDelay: '3s', animationDuration: '3.5s' }}
+        />
+      </div>
+
+      {/* Navigation */}
+      <nav className="relative z-50 p-6">
+        <div className="mx-auto flex max-w-7xl items-center justify-between">
+          <div className="flex items-center space-x-4">
+            <Feather
+              className="h-10 w-10 drop-shadow-lg"
+              strokeWidth={1.5}
+              style={{
+                stroke: 'url(#featherGradient)',
+                filter:
+                  'drop-shadow(0 0 10px rgba(244, 114, 182, 0.8)) drop-shadow(0 0 20px rgba(139, 92, 246, 0.4))',
+              }}
             />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+            <h1 className="bg-gradient-to-r from-pink-400 to-violet-400 bg-clip-text text-3xl font-bold text-transparent">
+              ZoraPad
+            </h1>
+          </div>
+
+          {/* Desktop Navigation */}
+          <div className="hidden items-center space-x-8 md:flex">
+            <a href="#" className="text-white/80 transition-colors duration-300 hover:text-white">
+              Explore
+            </a>
+            <a href="#" className="text-white/80 transition-colors duration-300 hover:text-white">
+              Community
+            </a>
+            <a href="#" className="text-white/80 transition-colors duration-300 hover:text-white">
+              About
+            </a>
+            <button className="rounded-full border border-white/20 bg-white/10 px-6 py-3 font-medium text-white backdrop-blur-sm transition-all duration-300 hover:scale-105 hover:bg-white/20">
+              Login
+            </button>
+          </div>
+
+          {/* Mobile Menu Button */}
+          <button
+            className="p-2 text-white transition-colors duration-300 hover:text-pink-400 md:hidden"
+            onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
           >
-            Read our docs
-          </a>
+            {isMobileMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
+          </button>
         </div>
-      </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
+
+        {/* Mobile Navigation Menu */}
+        {isMobileMenuOpen && (
+          <div className="absolute top-full right-0 left-0 border-t border-white/20 bg-gradient-to-br from-purple-900/90 via-blue-900/90 to-indigo-900/90 p-6 backdrop-blur-sm md:hidden">
+            <div className="flex flex-col space-y-4">
+              <a
+                href="#"
+                className="py-2 text-white/80 transition-colors duration-300 hover:text-white"
+              >
+                Explore
+              </a>
+              <a
+                href="#"
+                className="py-2 text-white/80 transition-colors duration-300 hover:text-white"
+              >
+                Community
+              </a>
+              <a
+                href="#"
+                className="py-2 text-white/80 transition-colors duration-300 hover:text-white"
+              >
+                About
+              </a>
+              <button className="rounded-full border border-white/20 bg-white/10 px-6 py-3 text-center font-medium text-white backdrop-blur-sm transition-all duration-300 hover:bg-white/20">
+                Login
+              </button>
+            </div>
+          </div>
+        )}
+      </nav>
+
+      {/* Hero Section */}
+      <div className="relative z-40 mx-auto max-w-7xl px-6 pt-20 pb-32">
+        <div
+          className={`transform text-center transition-all duration-1000 ${isVisible ? 'translate-y-0 opacity-100' : 'translate-y-10 opacity-0'}`}
         >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
+          <div className="mb-8 inline-flex items-center space-x-2 rounded-full border border-white/20 bg-white/10 px-6 py-3 backdrop-blur-sm">
+            <Zap className="h-5 w-5 text-yellow-400" />
+            <span className="text-sm font-medium text-white/90">Where Stories Come Alive</span>
+          </div>
+
+          <h1 className="mb-8 text-6xl leading-tight font-bold md:text-8xl">
+            <span className="animate-pulse bg-gradient-to-r from-pink-400 via-violet-400 to-cyan-400 bg-clip-text text-transparent">
+              Create
+            </span>
+            <br />
+            <span className="text-white">Share</span>
+            <br />
+            <span className="bg-gradient-to-r from-emerald-400 via-teal-400 to-blue-400 bg-clip-text text-transparent">
+              Inspire
+            </span>
+          </h1>
+
+          <p className="mx-auto mb-12 max-w-4xl text-xl leading-relaxed text-white/80 md:text-2xl">
+            The ultimate platform for fanfiction writers to craft incredible stories, receive
+            instant feedback, and build a community of passionate readers.
+          </p>
+
+          <div className="mb-16 flex flex-col items-center justify-center gap-6 sm:flex-row">
+            <button className="group relative overflow-hidden rounded-full bg-gradient-to-r from-pink-500 to-violet-500 px-12 py-5 text-xl font-bold text-white shadow-2xl shadow-pink-500/30 transition-all duration-300 hover:scale-105">
+              <span className="relative z-10 flex items-center space-x-3">
+                <Pen className="h-6 w-6" />
+                <span>Start Writing</span>
+                <ArrowRight className="h-6 w-6 transition-transform duration-300 group-hover:translate-x-1" />
+              </span>
+              <div className="absolute inset-0 bg-gradient-to-r from-violet-500 to-pink-500 opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
+            </button>
+
+            <button className="flex items-center space-x-3 rounded-full border-2 border-white/30 bg-white/10 px-12 py-5 text-xl font-semibold text-white backdrop-blur-sm transition-all duration-300 hover:scale-105 hover:bg-white/20">
+              <BookOpen className="h-6 w-6" />
+              <span>Explore Stories</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Features Grid */}
+        <div className="mb-20 grid gap-8 md:grid-cols-3">
+          {features.map((feature, index) => (
+            <div
+              key={index}
+              className={`group rounded-3xl border border-white/10 bg-white/5 p-8 backdrop-blur-sm transition-all duration-500 hover:scale-105 hover:bg-white/10 hover:shadow-2xl hover:shadow-violet-500/20 ${
+                activeFeature === index ? 'ring-2 ring-violet-400' : ''
+              }`}
+              onMouseEnter={() => setActiveFeature(index)}
+            >
+              <div className="mb-6 text-violet-400 transition-transform duration-300 group-hover:scale-110">
+                {feature.icon}
+              </div>
+              <h3 className="mb-4 text-2xl font-bold text-white">{feature.title}</h3>
+              <p className="text-lg leading-relaxed text-white/70">{feature.description}</p>
+            </div>
+          ))}
+        </div>
+
+        {/* Trending Stories */}
+        <div className="rounded-3xl border border-white/10 bg-white/5 p-8 backdrop-blur-sm">
+          <div className="mb-8 flex items-center space-x-3">
+            <TrendingUp className="h-8 w-8 text-emerald-400" />
+            <h2 className="text-3xl font-bold text-white">Trending Now</h2>
+          </div>
+
+          <div className="grid gap-6 md:grid-cols-2">
+            {trendingStories.map((story, index) => (
+              <div
+                key={index}
+                className="group cursor-pointer rounded-2xl border border-white/10 bg-white/5 p-6 transition-all duration-300 hover:scale-105 hover:bg-white/10"
+              >
+                <h3 className="mb-2 text-xl font-bold text-white transition-colors duration-300 group-hover:text-violet-400">
+                  {story.title}
+                </h3>
+                <p className="mb-4 text-white/60">by {story.author}</p>
+                <div className="flex items-center space-x-6 text-white/50">
+                  <div className="flex items-center space-x-2">
+                    <Heart className="h-5 w-5 text-pink-400" />
+                    <span>{story.likes.toLocaleString()}</span>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <MessageCircle className="h-5 w-5 text-blue-400" />
+                    <span>{story.comments}</span>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* CTA Section */}
+        <div className="mt-20 text-center">
+          <div className="inline-block rounded-3xl bg-gradient-to-r from-pink-500 to-violet-500 p-1">
+            <div className="rounded-3xl bg-gradient-to-br from-purple-900 to-indigo-900 px-12 py-12">
+              <Star className="slow mx-auto mb-6 h-16 w-16 animate-spin text-yellow-400" />
+              <h2 className="mb-6 text-4xl font-bold text-white md:text-5xl">
+                Ready to Begin Your Journey?
+              </h2>
+              <p className="mx-auto mb-8 max-w-2xl text-xl text-white/80">
+                Join thousands of writers who are already crafting amazing stories and building
+                their audience on ZoraPad.
+              </p>
+              <button className="group relative overflow-hidden rounded-full bg-gradient-to-r from-pink-500 to-violet-500 px-16 py-6 text-2xl font-bold text-white shadow-2xl shadow-pink-500/30 transition-all duration-300 hover:scale-105">
+                <span className="relative z-10 flex items-center space-x-3">
+                  <span>Get Started Free</span>
+                </span>
+                <div className="absolute inset-0 bg-gradient-to-r from-violet-500 to-pink-500 opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Footer */}
+      <footer className="relative z-40 mt-20 border-t border-white/10 bg-black/20 py-12 backdrop-blur-sm">
+        <div className="w-full px-6 text-center">
+          <div className="mb-6 flex items-center justify-center space-x-4">
+            <Feather
+              className="h-10 w-10 drop-shadow-lg"
+              strokeWidth={1.5}
+              style={{
+                stroke: 'url(#featherGradient)',
+                filter:
+                  'drop-shadow(0 0 10px rgba(244, 114, 182, 0.8)) drop-shadow(0 0 20px rgba(139, 92, 246, 0.4))',
+              }}
+            />
+            <span className="bg-gradient-to-r from-pink-400 to-violet-400 bg-clip-text text-2xl font-bold text-transparent">
+              ZoraPad
+            </span>
+          </div>
+          <p className="text-lg text-white/60">
+            Empowering writers, inspiring readers, building communities.
+          </p>
+        </div>
       </footer>
     </div>
   );
-}
+};
+
+export default ZoraPadHomepage;
