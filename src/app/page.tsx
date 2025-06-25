@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 
 import {
   ArrowRight,
@@ -8,15 +8,15 @@ import {
   Feather,
   Globe,
   Heart,
-  Menu,
   MessageCircle,
   Pen,
   Star,
   TrendingUp,
   Users,
-  X,
   Zap,
 } from 'lucide-react';
+
+import Navbar from './components/Navbar';
 
 const ZoraPadHomepage = () => {
   const [isVisible, setIsVisible] = useState(false);
@@ -91,78 +91,7 @@ const ZoraPadHomepage = () => {
         />
       </div>
 
-      {/* Navigation */}
-      <nav className="relative z-50 p-6">
-        <div className="mx-auto flex max-w-7xl items-center justify-between">
-          <div className="flex items-center space-x-4">
-            <Feather
-              className="h-10 w-10 drop-shadow-lg"
-              strokeWidth={1.5}
-              style={{
-                stroke: 'url(#featherGradient)',
-                filter:
-                  'drop-shadow(0 0 10px rgba(244, 114, 182, 0.8)) drop-shadow(0 0 20px rgba(139, 92, 246, 0.4))',
-              }}
-            />
-            <h1 className="bg-gradient-to-r from-pink-400 to-violet-400 bg-clip-text text-3xl font-bold text-transparent">
-              ZoraPad
-            </h1>
-          </div>
-
-          {/* Desktop Navigation */}
-          <div className="hidden items-center space-x-8 md:flex">
-            <a href="#" className="text-white/80 transition-colors duration-300 hover:text-white">
-              Explore
-            </a>
-            <a href="#" className="text-white/80 transition-colors duration-300 hover:text-white">
-              Community
-            </a>
-            <a href="#" className="text-white/80 transition-colors duration-300 hover:text-white">
-              About
-            </a>
-            <button className="rounded-full border border-white/20 bg-white/10 px-6 py-3 font-medium text-white backdrop-blur-sm transition-all duration-300 hover:scale-105 hover:bg-white/20">
-              Login
-            </button>
-          </div>
-
-          {/* Mobile Menu Button */}
-          <button
-            className="p-2 text-white transition-colors duration-300 hover:text-pink-400 md:hidden"
-            onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-          >
-            {isMobileMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
-          </button>
-        </div>
-
-        {/* Mobile Navigation Menu */}
-        {isMobileMenuOpen && (
-          <div className="absolute top-full right-0 left-0 border-t border-white/20 bg-gradient-to-br from-purple-900/90 via-blue-900/90 to-indigo-900/90 p-6 backdrop-blur-sm md:hidden">
-            <div className="flex flex-col space-y-4">
-              <a
-                href="#"
-                className="py-2 text-white/80 transition-colors duration-300 hover:text-white"
-              >
-                Explore
-              </a>
-              <a
-                href="#"
-                className="py-2 text-white/80 transition-colors duration-300 hover:text-white"
-              >
-                Community
-              </a>
-              <a
-                href="#"
-                className="py-2 text-white/80 transition-colors duration-300 hover:text-white"
-              >
-                About
-              </a>
-              <button className="rounded-full border border-white/20 bg-white/10 px-6 py-3 text-center font-medium text-white backdrop-blur-sm transition-all duration-300 hover:bg-white/20">
-                Login
-              </button>
-            </div>
-          </div>
-        )}
-      </nav>
+      <Navbar isMobileMenuOpen={isMobileMenuOpen} setIsMobileMenuOpen={setIsMobileMenuOpen} />
 
       {/* Hero Section */}
       <div className="relative z-40 mx-auto max-w-7xl px-6 pt-20 pb-32">

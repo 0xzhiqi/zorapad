@@ -24,3 +24,126 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+/* Base styles for thirdweb button container */
+.thirdweb-button-container {
+  display: flex !important;
+  align-items: center !important;
+}
+
+.thirdweb-button-container > div {
+  display: flex !important;
+  align-items: center !important;
+}
+
+/* Ensure all thirdweb buttons have consistent alignment */
+.thirdweb-button-container button,
+[data-thirdweb] button,
+div[data-testid='connect-button'] button,
+div[data-testid='details-button'] button {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  border: none !important;
+  outline: none !important;
+  cursor: pointer !important;
+}
+
+/* Desktop styles - natural width with proper alignment */
+@media (min-width: 769px) {
+  .thirdweb-button-container button,
+  .thirdweb-button-container > div > button,
+  [data-thirdweb] button,
+  div[data-testid='connect-button'] button,
+  div[data-testid='details-button'] button {
+    min-width: 120px !important;
+    padding: 10px 20px !important;
+    font-size: 16px !important;
+    box-sizing: border-box !important;
+    white-space: nowrap !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    line-height: 1.5 !important;
+    height: auto !important;
+    vertical-align: middle !important;
+  }
+
+  /* Ensure the button container aligns with navbar items */
+  .thirdweb-button-container {
+    display: flex !important;
+    align-items: center !important;
+    height: 100% !important;
+  }
+
+  .thirdweb-button-container > div {
+    display: flex !important;
+    align-items: center !important;
+    height: 100% !important;
+  }
+}
+
+/* Mobile styles - full width */
+@media (max-width: 768px) {
+  /* Force full width on mobile only */
+  .thirdweb-button-container,
+  .thirdweb-button-container > div {
+    width: 100% !important;
+  }
+
+  .thirdweb-button-container button,
+  .thirdweb-button-container > div > button,
+  [data-thirdweb],
+  [data-thirdweb] button,
+  [data-thirdweb] > div,
+  [data-thirdweb] > div > button,
+  div[data-testid='connect-button'],
+  div[data-testid='connect-button'] button,
+  div[data-testid='details-button'],
+  div[data-testid='details-button'] button {
+    width: 100% !important;
+    min-width: 100% !important;
+    max-width: 100% !important;
+    display: flex !important;
+    font-size: 16px !important; /* Match the navbar text size */
+    padding: 8px 24px !important; /* Match py-2 (8px) vertical padding from navbar links */
+    box-sizing: border-box !important;
+    line-height: 1.5 !important;
+    font-weight: 400 !important; /* Match the navbar link font weight */
+  }
+
+  /* Specific handling for connected state on mobile */
+  div[data-testid='details-button'] button {
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    justify-content: center !important;
+    align-items: center !important;
+  }
+
+  /* Target text content inside connected button */
+  div[data-testid='details-button'] button span,
+  div[data-testid='details-button'] button > *:not(svg) {
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+    max-width: calc(100% - 20px) !important;
+    display: inline-block !important;
+    font-size: 16px !important; /* Ensure consistent font size */
+  }
+
+  /* Optimize icons on small mobile screens */
+  @media (max-width: 480px) {
+    .thirdweb-button-container button,
+    div[data-testid='details-button'] button {
+      font-size: 16px !important; /* Keep consistent even on small screens */
+      padding: 8px 16px !important;
+    }
+
+    div[data-testid='details-button'] button svg {
+      width: 16px !important;
+      height: 16px !important;
+      flex-shrink: 0 !important;
+    }
+  }
+}
