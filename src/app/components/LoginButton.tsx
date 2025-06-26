@@ -3,12 +3,14 @@
 import { useEffect, useState } from 'react';
 
 import { signIn, signOut, useSession } from 'next-auth/react';
+import { Loader2 } from 'lucide-react';
 import { SiweMessage } from 'siwe';
 import { createThirdwebClient } from 'thirdweb';
 import { baseSepolia } from 'thirdweb/chains';
 import { ConnectButton, useActiveAccount, useActiveWalletChain } from 'thirdweb/react';
 import { darkTheme } from 'thirdweb/react';
 import { createWallet, inAppWallet } from 'thirdweb/wallets';
+import { usePathname } from 'next/navigation';
 
 const client = createThirdwebClient({
   clientId: process.env.NEXT_PUBLIC_THIRDWEB_CLIENT_ID || 'your-client-id-here',
@@ -35,6 +37,15 @@ const LoginButton: React.FC<ConnectButtonProps> = ({ className }) => {
   const account = useActiveAccount();
   const activeChain = useActiveWalletChain();
   const [isAuthenticating, setIsAuthenticating] = useState(false);
+  const pathname = usePathname();
+
+  // Determine if we're on the homepage (dark background) or other pages (light background)
+  const isHomepage = pathname === '/';
+
+  // Simplified color classes based on current page
+  const buttonTextColor = isHomepage ? 'text-white' : 'text-purple-600';
+  const buttonBorderColor = isHomepage ? 'border-white/30' : 'border-purple-200';
+  const buttonBgColor = isHomepage ? 'bg-white/10' : 'bg-purple-100';
 
   const handleWalletAuth = async () => {
     if (!account?.address || session || isAuthenticating) return;
@@ -138,42 +149,48 @@ const LoginButton: React.FC<ConnectButtonProps> = ({ className }) => {
 
   return (
     <div className={`thirdweb-button-container ${className || ''}`}>
-      <ConnectButton
-        accountAbstraction={{
-          chain: baseSepolia,
-          sponsorGas: true,
-        }}
-        client={client}
-        connectButton={{
-          label: session ? 'Connected' : 'Login',
-        }}
-        detailsButton={{
-          displayBalanceToken: undefined,
-        }}
-        connectModal={{ size: 'compact', title: 'Login' }}
-        onDisconnect={handleDisconnect}
-        theme={darkTheme({
-          colors: {
-            primaryText: '#ffffff',
-            secondaryText: 'rgba(255, 255, 255, 0.8)',
-            accentText: '#a78bfa',
-            modalBg: 'rgba(30, 27, 75, 0.95)',
-            connectedButtonBg: 'rgba(30, 27, 75, 0.95)',
-            connectedButtonBgHover: 'rgba(30, 27, 75, 1)',
-            borderColor: 'rgba(167, 139, 250, 0.3)',
-            selectedTextColor: '#ffffff',
-            selectedTextBg: 'linear-gradient(to right, #ec4899, #8b5cf6)',
-            primaryButtonBg: 'linear-gradient(to right, #ec4899, #8b5cf6)',
-            primaryButtonText: '#ffffff',
-            secondaryButtonBg: 'rgba(255, 255, 255, 0.1)',
-            secondaryButtonText: '#ffffff',
-            secondaryButtonHoverBg: 'rgba(255, 255, 255, 0.2)',
-            danger: '#ef4444',
-          },
-        })}
-        wallets={wallets}
-      />
-      {isAuthenticating && <div className="mt-2 text-sm text-white/60">Authenticating...</div>}
+      {isAuthenticating ? (
+        <div className={`flex items-center justify-center space-x-2 rounded-full border-2 ${buttonBorderColor} ${buttonBgColor} px-6 py-3 font-semibold ${buttonTextColor} backdrop-blur-sm transition-all duration-300`}>
+          <Loader2 className="h-5 w-5 animate-spin" />
+          <span>Authenticating...</span>
+        </div>
+      ) : (
+        <ConnectButton
+          accountAbstraction={{
+            chain: baseSepolia,
+            sponsorGas: true,
+          }}
+          client={client}
+          connectButton={{
+            label: session ? 'Connected' : 'Login',
+          }}
+          detailsButton={{
+            displayBalanceToken: undefined,
+          }}
+          connectModal={{ size: 'compact', title: 'Login' }}
+          onDisconnect={handleDisconnect}
+          theme={darkTheme({
+            colors: {
+              primaryText: '#ffffff',
+              secondaryText: 'rgba(255, 255, 255, 0.8)',
+              accentText: '#a78bfa',
+              modalBg: 'rgba(30, 27, 75, 0.95)',
+              connectedButtonBg: 'rgba(30, 27, 75, 0.95)',
+              connectedButtonBgHover: 'rgba(30, 27, 75, 1)',
+              borderColor: 'rgba(167, 139, 250, 0.3)',
+              selectedTextColor: '#ffffff',
+              selectedTextBg: 'linear-gradient(to right, #ec4899, #8b5cf6)',
+              primaryButtonBg: 'linear-gradient(to right, #ec4899, #8b5cf6)',
+              primaryButtonText: '#ffffff',
+              secondaryButtonBg: 'rgba(255, 255, 255, 0.1)',
+              secondaryButtonText: '#ffffff',
+              secondaryButtonHoverBg: 'rgba(255, 255, 255, 0.2)',
+              danger: '#ef4444',
+            },
+          })}
+          wallets={wallets}
+        />
+      )}
     </div>
   );
 };

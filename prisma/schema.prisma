@@ -40,7 +40,7 @@ model Session {
 model User {
   id            String    @id @default(auto()) @map("_id") @db.ObjectId
   name          String?
-  email         String?   @unique
+  email         String?   // Remove @unique
   emailVerified DateTime?
   image         String?
   walletAddress String?   @unique

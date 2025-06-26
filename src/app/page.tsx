@@ -16,12 +16,12 @@ import {
   Zap,
 } from 'lucide-react';
 
-import Navbar from './components/Navbar';
+// Remove Navbar import - it's now in layout
 
-const ZoraPadHomepage = () => {
+const Homepage = () => {
   const [isVisible, setIsVisible] = useState(false);
   const [activeFeature, setActiveFeature] = useState(0);
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  // Remove mobile menu state - handled in layout
 
   useEffect(() => {
     setIsVisible(true);
@@ -91,14 +91,14 @@ const ZoraPadHomepage = () => {
         />
       </div>
 
-      <Navbar isMobileMenuOpen={isMobileMenuOpen} setIsMobileMenuOpen={setIsMobileMenuOpen} />
+      {/* Remove Navbar - it's now in layout as overlay */}
 
-      {/* Hero Section */}
+      {/* Hero Section - no top padding needed since navbar overlays */}
       <div className="relative z-40 mx-auto max-w-7xl px-6 pt-20 pb-32">
         <div
           className={`transform text-center transition-all duration-1000 ${isVisible ? 'translate-y-0 opacity-100' : 'translate-y-10 opacity-0'}`}
         >
-          <div className="mb-8 inline-flex items-center space-x-2 rounded-full border border-white/20 bg-white/10 px-6 py-3 backdrop-blur-sm">
+          <div className="my-8 inline-flex items-center space-x-2 rounded-full border border-white/20 bg-white/10 px-6 py-3 backdrop-blur-sm">
             <Zap className="h-5 w-5 text-yellow-400" />
             <span className="text-sm font-medium text-white/90">Where Stories Come Alive</span>
           </div>
@@ -237,4 +237,4 @@ const ZoraPadHomepage = () => {
   );
 };
 
-export default ZoraPadHomepage;
+export default Homepage;
