@@ -1,11 +1,12 @@
 'use client';
 
 import { useEffect } from 'react';
+
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 
-import ProfileHeader from '../components/ProfileHeader';
-import MyNovels from '../components/MyNovels';
+import MyNovels from './components/MyNovels';
+import ProfileHeader from './components/ProfileHeader';
 
 const DashboardPage = () => {
   const { data: session, status } = useSession();
