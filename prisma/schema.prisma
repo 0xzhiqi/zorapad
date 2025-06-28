@@ -48,8 +48,27 @@ model User {
   updatedAt     DateTime  @updatedAt
   accounts      Account[]
   sessions      Session[]
+  novels        Novel[]   // Add relation to novels
 
   @@map("users")
+}
+
+model Novel {
+  id                      String   @id @default(auto()) @map("_id") @db.ObjectId
+  title                   String
+  coinName                String   // Name of the coin
+  coinSymbol              String   // Symbol of the coin (e.g., NOVEL)
+  seekPublicFeedback      Boolean  @default(false)
+  coinAddress             String?  // Address of the deployed coin contract
+  coinTransactionHash     String?  // Transaction hash of coin creation
+  owners                  String?  // Wallet address of the coin owners
+  payoutRecipient         String?  // Wallet address for payouts
+  authorId                String   @db.ObjectId
+  author                  User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  createdAt               DateTime @default(now())
+  updatedAt               DateTime @updatedAt
+
+  @@map("novels")
 }
 
 model VerificationToken {

@@ -2,15 +2,15 @@
 
 import { useEffect, useState } from 'react';
 
-import { signIn, signOut, useSession } from 'next-auth/react';
 import { Loader2 } from 'lucide-react';
+import { signIn, signOut, useSession } from 'next-auth/react';
+import { usePathname } from 'next/navigation';
 import { SiweMessage } from 'siwe';
 import { createThirdwebClient } from 'thirdweb';
 import { baseSepolia } from 'thirdweb/chains';
 import { ConnectButton, useActiveAccount, useActiveWalletChain } from 'thirdweb/react';
 import { darkTheme } from 'thirdweb/react';
 import { createWallet, inAppWallet } from 'thirdweb/wallets';
-import { usePathname } from 'next/navigation';
 
 const client = createThirdwebClient({
   clientId: process.env.NEXT_PUBLIC_THIRDWEB_CLIENT_ID || 'your-client-id-here',
@@ -150,7 +150,9 @@ const LoginButton: React.FC<ConnectButtonProps> = ({ className }) => {
   return (
     <div className={`thirdweb-button-container ${className || ''}`}>
       {isAuthenticating ? (
-        <div className={`flex items-center justify-center space-x-2 rounded-full border-2 ${buttonBorderColor} ${buttonBgColor} px-6 py-3 font-semibold ${buttonTextColor} backdrop-blur-sm transition-all duration-300`}>
+        <div
+          className={`flex items-center justify-center space-x-2 rounded-full border-2 ${buttonBorderColor} ${buttonBgColor} px-6 py-3 font-semibold ${buttonTextColor} backdrop-blur-sm transition-all duration-300`}
+        >
           <Loader2 className="h-5 w-5 animate-spin" />
           <span>Authenticating...</span>
         </div>
