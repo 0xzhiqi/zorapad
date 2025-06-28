@@ -59,6 +59,7 @@ model Novel {
   coinName                String   // Name of the coin
   coinSymbol              String   // Symbol of the coin (e.g., NOVEL)
   seekPublicFeedback      Boolean  @default(false)
+  published               Boolean  @default(false)
   coinAddress             String?  // Address of the deployed coin contract
   coinTransactionHash     String?  // Transaction hash of coin creation
   owners                  String?  // Wallet address of the coin owners
