@@ -232,12 +232,31 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     async jwt({ token, user }) {
       if (user) {
         token.walletAddress = (user as any).walletAddress;
+        token.sub = user.id; // Store user ID in token
       }
       return token;
     },
     async session({ session, token }) {
-      if (session.user) {
-        (session.user as any).walletAddress = token.walletAddress;
+      if (session.user && token.sub) {
+        // Fetch fresh user data from database on each session check
+        const freshUser = await prisma.user.findUnique({
+          where: { id: token.sub as string },
+          select: {
+            id: true,
+            name: true,
+            walletAddress: true,
+          },
+        });
+        
+        if (freshUser) {
+          session.user.id = freshUser.id;
+          session.user.name = freshUser.name;
+          (session.user as any).walletAddress = freshUser.walletAddress;
+        } else {
+          // Fallback to token data if user not found
+          (session.user as any).walletAddress = token.walletAddress;
+          session.user.id = token.sub as string;
+        }
       }
       return session;
     },
