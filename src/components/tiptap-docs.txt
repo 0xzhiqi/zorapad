@@ -1,0 +1,488 @@
+import {
+  createContext, useCallback, useContext,
+} from 'react'
+
+export const ThreadsContext = createContext({
+  threads: [],
+  selectedThreads: [],
+  selectedThread: null,
+
+  onClickThread: () => null,
+  deleteThread: () => null,
+  resolveThread: () => null,
+  unresolveThread: () => null,
+  onUpdateComment: () => null,
+  onHoverThread: () => null,
+  onLeaveThread: () => null,
+})
+
+export const ThreadsProvider = ({
+  children,
+  threads = [],
+  selectedThreads = [],
+  selectedThread = null,
+  onClickThread = () => null,
+  onDeleteThread = () => null,
+  onResolveThread = () => null,
+  onUnresolveThread = () => null,
+  onUpdateComment = () => null,
+  onHoverThread = () => null,
+  onLeaveThread = () => null,
+  setSelectedThread = () => null,
+}) => {
+  const handleThreadClick = useCallback(threadId => {
+    setSelectedThread(currentThreadId => {
+      if (currentThreadId !== threadId) {
+        onClickThread(threadId)
+        setSelectedThread(threadId)
+      }
+
+      return currentThreadId !== threadId ? threadId : null
+    })
+  }, [onClickThread])
+
+  const providerValue = {
+    threads,
+    selectedThreads,
+    selectedThread,
+
+    deleteThread: onDeleteThread,
+    resolveThread: onResolveThread,
+    unresolveThread: onUnresolveThread,
+    onClickThread: handleThreadClick,
+    onUpdateComment,
+    onHoverThread,
+    onLeaveThread,
+  }
+
+  return (
+    <ThreadsContext.Provider value={providerValue}>
+      {children}
+    </ThreadsContext.Provider>
+  )
+}
+
+export const useThreadsState = () => {
+  return useContext(ThreadsContext)
+}
+
+import { useCallback, useState } from 'react'
+
+export const CommentCard = ({
+  name,
+  createdAt,
+  deleted,
+  content,
+  onEdit,
+  onDelete,
+  showActions = false,
+}) => {
+  const [isComposing, setIsComposing] = useState(false)
+  const [composeValue, setComposeValue] = useState(content)
+
+  const handleSubmit = useCallback(e => {
+    e.preventDefault()
+
+    if (onEdit) {
+      setIsComposing(false)
+
+      onEdit(composeValue)
+    }
+  }, [composeValue, onEdit])
+
+  const commentWrapperClass = ['comment']
+
+  if (deleted) {
+    commentWrapperClass.push('deleted')
+  }
+
+  return (
+    <div className={commentWrapperClass.join(' ')}>
+      <div className="label-group">
+        <label>{name}</label>
+        <label>{new Date(createdAt).toLocaleTimeString()}</label>
+      </div>
+
+      {deleted && (
+        <div className="comment-content">
+          <p>Comment was deleted</p>
+        </div>
+      )}
+
+      {!isComposing && !deleted ? (
+        <div className="comment-content">
+          <p>{content}</p>
+          {showActions ? (
+            <div className="button-group">
+              <button onClick={e => {
+                e.preventDefault()
+                e.stopPropagation()
+
+                setIsComposing(true)
+              }}>Edit</button>
+              {onDelete ? <button onClick={e => {
+                e.preventDefault()
+                e.stopPropagation()
+
+                onDelete()
+              }}>Delete</button> : null}
+            </div>
+          ) : null}
+        </div>
+      ) : null}
+
+      {isComposing && !deleted ? (
+        <div className="comment-edit">
+          <form onSubmit={handleSubmit}>
+            <textarea
+              type="text"
+              onChange={e => setComposeValue(e.currentTarget.value)}
+              value={composeValue}
+            />
+            <div className="flex-row">
+              <div className="button-group">
+              <button type="reset" onClick={() => setIsComposing(false)}>Cancel</button>
+                <button type="submit" className="primary" disabled={!composeValue.length || composeValue === content}>Accept</button>
+              </div>
+            </div>
+          </form>
+        </div>
+      ) : null}
+
+    </div>
+  )
+}
+
+import { useCallback, useEffect, useRef } from 'react'
+
+export const ThreadCard = ({
+  id,
+  active,
+  open,
+  children,
+  onClick,
+  onClickOutside,
+}) => {
+  const cardRef = useRef()
+  const handleClick = useCallback(() => {
+    if (onClick) {
+      onClick(id)
+    }
+  }, [id, onClick])
+
+  useEffect(() => {
+    if (!active) {
+      return () => null
+    }
+
+    const clickHandler = onClickOutside ? event => {
+      if (!cardRef.current) {
+        return
+      }
+
+      if (!cardRef.current.contains(event.target)) {
+        onClickOutside()
+      }
+    } : null
+
+    if (clickHandler) {
+      document.addEventListener('click', clickHandler)
+    }
+
+    return () => {
+      if (clickHandler) {
+        document.removeEventListener('click', clickHandler)
+      }
+    }
+  }, [active, onClickOutside])
+
+  return (
+    <div
+      ref={cardRef}
+      className={`thread${open ? ' is-open' : ''}${active ? ' is-active' : ''}`}
+      onClick={handleClick}
+    >
+      {children}
+    </div>
+  )
+}
+
+import { useCallback, useState } from 'react'
+
+import { useUser } from '../hooks/useUser'
+
+export const ThreadComposer = ({ threadId, provider }) => {
+  const user = useUser()
+  const [comment, setComment] = useState('')
+
+  const handleSubmit = useCallback(
+    e => {
+      e.preventDefault()
+
+      if (!comment) {
+        return
+      }
+
+      if (provider) {
+        provider.addComment(threadId, {
+          content: comment,
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
+          data: { userName: user.name },
+        })
+
+        setComment('')
+      }
+    },
+    [comment, provider],
+  )
+
+  return (
+    <form onSubmit={handleSubmit}>
+      <textarea
+        placeholder="Reply to thread …"
+        onChange={e => setComment(e.currentTarget.value)}
+        value={comment}
+      />
+      <div className="flex-row">
+        <div className="button-group">
+          <button type="submit" className="primary" disabled={!comment.length}>Send</button>
+        </div>
+      </div>
+    </form>
+  )
+}
+
+import { useThreadsState } from '../context'
+import { ThreadsListItem } from './ThreadsListItem'
+
+export const ThreadsList = ({ provider, threads }) => {
+  const { selectedThreads, selectedThread } = useThreadsState()
+
+  if (threads.length === 0) {
+    return <label className="label">No threads.</label>
+  }
+
+  return (
+    <div className="threads-group">
+      {threads.map(t => (
+        <ThreadsListItem
+          key={t.id}
+          thread={t}
+          active={selectedThreads.includes(t.id) || selectedThread === t.id}
+          open={selectedThread === t.id}
+          provider={provider}
+        />
+      ))}
+    </div>
+  )
+}
+
+import { useCallback, useMemo } from 'react'
+
+import { useThreadsState } from '../context'
+import { CommentCard } from './CommentCard'
+import { ThreadCard } from './ThreadCard'
+import { ThreadComposer } from './ThreadComposer'
+
+export const ThreadsListItem = ({
+  thread,
+  provider,
+  active,
+  open,
+}) => {
+  const {
+    onClickThread,
+    deleteThread,
+    onHoverThread,
+    onLeaveThread,
+    resolveThread,
+    unresolveThread,
+  } = useThreadsState()
+  const classNames = ['threadsList--item']
+
+  if (active || open) {
+    classNames.push('threadsList--item--active')
+  }
+
+  const comments = useMemo(() => provider.getThreadComments(thread.id, true), [provider, thread])
+
+  const firstComment = comments && comments[0]
+
+  const handleDeleteClick = useCallback(() => {
+    deleteThread(thread.id)
+  }, [thread.id, deleteThread])
+
+  const handleResolveClick = useCallback(() => {
+    resolveThread(thread.id)
+  }, [thread.id, resolveThread])
+
+  const handleUnresolveClick = useCallback(() => {
+    unresolveThread(thread.id)
+  }, [thread.id, resolveThread])
+
+  const editComment = useCallback((commentId, val) => {
+    provider.updateComment(thread.id, commentId, { content: val })
+  }, [provider, thread.id])
+
+  const deleteComment = useCallback(commentId => {
+    provider.deleteComment(thread.id, commentId, { deleteContent: true })
+  }, [provider, thread.id, deleteThread, firstComment])
+
+  return (
+    <div onMouseEnter={() => onHoverThread(thread.id)} onMouseLeave={() => onLeaveThread()}>
+      <ThreadCard
+        id={thread.id}
+        active={active}
+        open={open}
+        onClick={!open ? onClickThread : null}
+        // onClickOutside
+      >
+        {open ? (
+          <>
+            <div className="header-group">
+              <div className="button-group">
+                {!thread.resolvedAt ? (
+                  <button onClick={handleResolveClick}>✓ Resolve</button>
+                ) : (
+                  <button onClick={handleUnresolveClick}>⟲ Unresolve</button>
+                )}
+                <button onClick={handleDeleteClick}>× Delete</button>
+              </div>
+            </div>
+
+            {thread.resolvedAt ? (
+              <div className="hint">💡 Resolved at {new Date(thread.resolvedAt).toLocaleDateString()} {new Date(thread.resolvedAt).toLocaleTimeString()}</div>
+            ) : null}
+
+            <div className="comments-group">
+              {comments.map(comment => (
+                <CommentCard
+                  key={comment.id}
+                  name={comment.data.userName}
+                  content={comment.deletedAt ? null : comment.content}
+                  createdAt={comment.createdAt}
+                  deleted={comment.deletedAt}
+                  onEdit={val => {
+                    if (val) {
+                      editComment(comment.id, val)
+                    }
+                  }}
+                  onDelete={() => {
+                    deleteComment(comment.id)
+                  }}
+                  showActions={true}
+                />
+              ))}
+            </div>
+            <div className="reply-group">
+              <ThreadComposer threadId={thread.id} provider={provider} />
+            </div>
+          </>
+        ) : null}
+
+        {!open && firstComment && firstComment.data ? (
+          <div className="comments-group">
+            <CommentCard
+              key={firstComment.id}
+              name={firstComment.data.userName}
+              content={firstComment.content}
+              createdAt={firstComment.createdAt}
+              deleted={firstComment.deletedAt}
+              onEdit={val => {
+                if (val) {
+                  editComment(firstComment.id, val)
+                }
+              }}
+            />
+            <div className="comments-count">
+              <label>{Math.max(0, comments.length - 1) || 0} {(comments.length - 1 || 0) === 1 ? 'reply' : 'replies'}</label>
+            </div>
+          </div>
+        ) : null}
+      </ThreadCard>
+    </div>
+  )
+}
+
+import { subscribeToThreads } from '@tiptap-pro/extension-comments'
+import { useCallback, useEffect, useState } from 'react'
+
+export const useThreads = (provider, editor, user) => {
+  const [threads, setThreads] = useState()
+
+  useEffect(() => {
+    if (provider) {
+      const unsubscribe = subscribeToThreads({
+        provider,
+        callback: currentThreads => {
+          setThreads(currentThreads)
+        },
+      })
+
+      return () => {
+        unsubscribe()
+      }
+    }
+  }, [provider])
+
+  const createThread = useCallback(() => {
+    const input = window.prompt('Comment content')
+
+    if (!input) {
+      return
+    }
+
+    if (!editor) {
+      return
+    }
+
+    editor.chain().focus().setThread({ content: input, commentData: { userName: user.name } }).run()
+  }, [editor, user])
+
+  return { threads, createThread }
+}
+
+const colors = ['#958DF1', '#F98181', '#FBBC88', '#FAF594', '#70CFF8', '#94FADB', '#B9F18D']
+const names = [
+  'Lea Thompson',
+  'Cyndi Lauper',
+  'Tom Cruise',
+  'Madonna',
+  'Jerry Hall',
+  'Joan Collins',
+  'Winona Ryder',
+  'Christina Applegate',
+  'Alyssa Milano',
+  'Molly Ringwald',
+  'Ally Sheedy',
+  'Debbie Harry',
+  'Olivia Newton-John',
+  'Elton John',
+  'Michael J. Fox',
+  'Axl Rose',
+  'Emilio Estevez',
+  'Ralph Macchio',
+  'Rob Lowe',
+  'Jennifer Grey',
+  'Mickey Rourke',
+  'John Cusack',
+  'Matthew Broderick',
+  'Justine Bateman',
+  'Lisa Bonet',
+]
+
+const getRandomElement = list => list[Math.floor(Math.random() * list.length)]
+
+const getRandomColor = () => getRandomElement(colors)
+const getRandomName = () => getRandomElement(names)
+
+export const userName = getRandomName()
+export const userColor = getRandomColor()
+
+export const useUser = () => {
+  return {
+    name: userName,
+    color: userColor,
+  }
+}

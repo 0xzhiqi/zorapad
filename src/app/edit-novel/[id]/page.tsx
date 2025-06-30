@@ -2,10 +2,23 @@
 
 import { useEffect, useRef, useState } from 'react';
 
-import { ArrowLeft, ChevronDown, Edit3, Loader2, Plus, Save, Trash2, X } from 'lucide-react';
+import { EditorContent, useEditor } from '@tiptap/react';
+import StarterKit from '@tiptap/starter-kit';
+import {
+  ArrowLeft,
+  Bold,
+  ChevronDown,
+  Code,
+  Edit3,
+  Italic,
+  Loader2,
+  Plus,
+  Save,
+  Strikethrough,
+  Trash2,
+  X,
+} from 'lucide-react';
 import { useParams, useRouter } from 'next/navigation';
-
-import { SimpleEditor } from '@/components/tiptap-templates/simple/simple-editor';
 
 interface Chapter {
   id: string;
@@ -50,6 +63,246 @@ interface ConfirmationModalProps {
   message: string;
   isLoading: boolean;
 }
+
+interface SimpleEditorProps {
+  content: string;
+  onChange: (content: string) => void;
+  placeholder?: string;
+  editable?: boolean;
+  autoFocus?: boolean;
+}
+
+const SimpleEditor = ({
+  content,
+  onChange,
+  placeholder = 'Start writing...',
+  editable = true,
+  autoFocus = false,
+}: SimpleEditorProps) => {
+  const editor = useEditor({
+    extensions: [
+      StarterKit.configure({
+        bulletList: {
+          keepMarks: true,
+          keepAttributes: false,
+        },
+        orderedList: {
+          keepMarks: true,
+          keepAttributes: false,
+        },
+      }),
+    ],
+    content: content,
+    editable: editable,
+    autofocus: autoFocus,
+    onUpdate: ({ editor }) => {
+      onChange(editor.getHTML());
+    },
+    editorProps: {
+      attributes: {
+        class: 'focus:outline-none min-h-[300px] p-4 prose prose-sm max-w-none',
+      },
+      handleDOMEvents: {
+        mousedown: (view, event) => {
+          return false;
+        },
+        mouseup: (view, event) => {
+          return false;
+        },
+        keydown: (view, event) => {
+          return false;
+        },
+      },
+    },
+  });
+
+  useEffect(() => {
+    if (editor && content !== editor.getHTML()) {
+      editor.commands.setContent(content, false);
+    }
+  }, [content, editor]);
+
+  useEffect(() => {
+    if (editor) {
+      editor.setEditable(editable);
+    }
+  }, [editable, editor]);
+
+  if (!editor) {
+    return null;
+  }
+
+  return (
+    <div className="overflow-hidden rounded-lg border border-gray-200 bg-white">
+      <div className="border-b border-gray-200 bg-gray-50 px-3 py-2">
+        <div className="flex items-center space-x-2">
+          <button
+            onClick={() => editor.chain().focus().toggleBold().run()}
+            disabled={!editor.can().chain().focus().toggleBold().run()}
+            className={`rounded-md p-2 transition-colors hover:bg-gray-200 ${
+              editor.isActive('bold') ? 'bg-gray-200 text-purple-600' : 'text-gray-600'
+            }`}
+            type="button"
+          >
+            <Bold className="h-4 w-4" />
+          </button>
+          <button
+            onClick={() => editor.chain().focus().toggleItalic().run()}
+            disabled={!editor.can().chain().focus().toggleItalic().run()}
+            className={`rounded-md p-2 transition-colors hover:bg-gray-200 ${
+              editor.isActive('italic') ? 'bg-gray-200 text-purple-600' : 'text-gray-600'
+            }`}
+            type="button"
+          >
+            <Italic className="h-4 w-4" />
+          </button>
+          <button
+            onClick={() => editor.chain().focus().toggleStrike().run()}
+            disabled={!editor.can().chain().focus().toggleStrike().run()}
+            className={`rounded-md p-2 transition-colors hover:bg-gray-200 ${
+              editor.isActive('strike') ? 'bg-gray-200 text-purple-600' : 'text-gray-600'
+            }`}
+            type="button"
+          >
+            <Strikethrough className="h-4 w-4" />
+          </button>
+          <button
+            onClick={() => editor.chain().focus().toggleCode().run()}
+            disabled={!editor.can().chain().focus().toggleCode().run()}
+            className={`rounded-md p-2 transition-colors hover:bg-gray-200 ${
+              editor.isActive('code') ? 'bg-gray-200 text-purple-600' : 'text-gray-600'
+            }`}
+            type="button"
+          >
+            <Code className="h-4 w-4" />
+          </button>
+
+          <div className="mx-2 h-6 w-px bg-gray-300" />
+
+          <button
+            onClick={() => editor.chain().focus().setParagraph().run()}
+            className={`rounded-md px-3 py-1 text-sm transition-colors hover:bg-gray-200 ${
+              editor.isActive('paragraph') ? 'bg-gray-200 text-purple-600' : 'text-gray-600'
+            }`}
+            type="button"
+          >
+            P
+          </button>
+          <button
+            onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}
+            className={`rounded-md px-3 py-1 text-sm transition-colors hover:bg-gray-200 ${
+              editor.isActive('heading', { level: 1 })
+                ? 'bg-gray-200 text-purple-600'
+                : 'text-gray-600'
+            }`}
+            type="button"
+          >
+            H1
+          </button>
+          <button
+            onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}
+            className={`rounded-md px-3 py-1 text-sm transition-colors hover:bg-gray-200 ${
+              editor.isActive('heading', { level: 2 })
+                ? 'bg-gray-200 text-purple-600'
+                : 'text-gray-600'
+            }`}
+            type="button"
+          >
+            H2
+          </button>
+          <button
+            onClick={() => editor.chain().focus().toggleBulletList().run()}
+            className={`rounded-md px-3 py-1 text-sm transition-colors hover:bg-gray-200 ${
+              editor.isActive('bulletList') ? 'bg-gray-200 text-purple-600' : 'text-gray-600'
+            }`}
+            type="button"
+          >
+            • List
+          </button>
+        </div>
+      </div>
+
+      <div className="relative bg-white">
+        <EditorContent editor={editor} className="focus-within:outline-none" />
+        {editor.isEmpty && (
+          <div className="pointer-events-none absolute top-4 left-4 text-gray-400">
+            {placeholder}
+          </div>
+        )}
+      </div>
+
+      <style jsx global>{`
+        .ProseMirror {
+          color: #111827 !important;
+          caret-color: #111827 !important;
+          outline: none;
+        }
+        .ProseMirror p {
+          color: #111827 !important;
+          margin: 0.75em 0;
+        }
+        .ProseMirror h1,
+        .ProseMirror h2,
+        .ProseMirror h3,
+        .ProseMirror h4,
+        .ProseMirror h5,
+        .ProseMirror h6 {
+          color: #111827 !important;
+          font-weight: bold;
+        }
+        .ProseMirror h1 {
+          font-size: 2em;
+          margin: 0.67em 0;
+        }
+        .ProseMirror h2 {
+          font-size: 1.5em;
+          margin: 0.75em 0;
+        }
+        .ProseMirror strong {
+          color: #111827 !important;
+          font-weight: bold;
+        }
+        .ProseMirror em {
+          color: #111827 !important;
+          font-style: italic;
+        }
+        .ProseMirror code {
+          color: #111827 !important;
+          background-color: #f3f4f6;
+          padding: 2px 4px;
+          border-radius: 3px;
+          font-family: monospace;
+        }
+        .ProseMirror ul,
+        .ProseMirror ol {
+          color: #111827 !important;
+          padding-left: 1rem;
+        }
+        .ProseMirror li {
+          color: #111827 !important;
+          margin: 0.25em 0;
+        }
+        .ProseMirror blockquote {
+          color: #111827 !important;
+          border-left: 3px solid #d1d5db;
+          padding-left: 1rem;
+          margin-left: 0;
+          font-style: italic;
+        }
+        .ProseMirror::selection {
+          background-color: #bfdbfe;
+        }
+        .ProseMirror *::selection {
+          background-color: #bfdbfe;
+        }
+        .ProseMirror s {
+          color: #111827 !important;
+          text-decoration: line-through;
+        }
+      `}</style>
+    </div>
+  );
+};
 
 const ConfirmationModal = ({
   isOpen,
@@ -133,7 +386,6 @@ const ChapterDropdown = ({
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  // Close dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
@@ -211,21 +463,19 @@ const ChapterEditor = ({
   const [title, setTitle] = useState('');
   const [editorContent, setEditorContent] = useState('');
   const [loadingContent, setLoadingContent] = useState(false);
+  const [editorKey, setEditorKey] = useState(0);
 
-  // Load chapter content when chapter changes
   useEffect(() => {
     const loadContent = async () => {
       if (!chapter) {
-        // Creating new chapter - start with empty content
         setTitle('');
         setEditorContent('');
+        setEditorKey((prev) => prev + 1);
         return;
       }
 
-      // Set title immediately
       setTitle(chapter.title || '');
 
-      // Load content from Google Cloud Storage if contentUrl exists
       if (chapter.contentUrl) {
         setLoadingContent(true);
         try {
@@ -244,9 +494,10 @@ const ChapterEditor = ({
           setLoadingContent(false);
         }
       } else {
-        // No content URL, start with empty content
         setEditorContent('');
       }
+
+      setEditorKey((prev) => prev + 1);
     };
 
     loadContent();
@@ -277,7 +528,7 @@ const ChapterEditor = ({
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           placeholder={chapter ? 'Chapter title' : 'Enter new chapter title'}
-          className="flex-1 rounded-lg border border-gray-300 px-3 py-2 text-lg font-semibold focus:border-purple-500 focus:ring-2 focus:ring-purple-500 focus:outline-none"
+          className="flex-1 rounded-lg border border-gray-300 px-3 py-2 text-lg font-semibold text-gray-900 focus:border-purple-500 focus:ring-2 focus:ring-purple-500 focus:outline-none"
         />
         <div className="ml-4 flex space-x-2">
           <button
@@ -304,22 +555,35 @@ const ChapterEditor = ({
       </div>
 
       <div className="rounded-lg border border-gray-300 bg-white">
-        <SimpleEditor
-          content={editorContent}
-          onChange={handleContentChange}
-          placeholder={
-            chapter ? 'Continue writing your chapter...' : 'Start writing your new chapter...'
-          }
-        />
+        <div
+          className="relative"
+          onMouseDown={(e) => {
+            e.stopPropagation();
+          }}
+          onMouseUp={(e) => {
+            e.stopPropagation();
+          }}
+          onKeyDown={(e) => {
+            e.stopPropagation();
+          }}
+        >
+          <SimpleEditor
+            key={editorKey}
+            content={editorContent}
+            onChange={handleContentChange}
+            placeholder={
+              chapter ? 'Continue writing your chapter...' : 'Start writing your new chapter...'
+            }
+            editable={!isLoading}
+            autoFocus={false}
+          />
+        </div>
       </div>
 
-      {/* Chapter info - only show for existing chapters */}
       {chapter && (
         <div className="text-sm text-gray-500">
           Chapter {chapter.order} • {chapter.wordCount} words
-          {chapter.contentUrl && (
-            <span className="ml-2 text-green-600">• Saved to Google Cloud Storage</span>
-          )}
+          {chapter.contentUrl && <span className="ml-2 text-green-600">• Saved</span>}
         </div>
       )}
     </div>
@@ -406,9 +670,6 @@ export default function EditNovelPage() {
     setUpdateLoading(true);
     try {
       if (selectedChapter) {
-        // Updating existing chapter - need to update both title and content
-
-        // 1. Update title in MongoDB
         const titleResponse = await fetch(`/api/chapters/${selectedChapter.id}`, {
           method: 'PATCH',
           headers: {
@@ -421,7 +682,6 @@ export default function EditNovelPage() {
           throw new Error('Failed to update chapter title');
         }
 
-        // 2. Update content in Google Cloud Storage
         const contentResponse = await fetch(`/api/chapters/${selectedChapter.id}/content`, {
           method: 'POST',
           headers: {
@@ -434,7 +694,6 @@ export default function EditNovelPage() {
           throw new Error('Failed to update chapter content');
         }
       } else {
-        // Creating new chapter - use the existing logic
         const url = `/api/novels/${id}/chapters`;
         const method = 'POST';
 
@@ -457,15 +716,12 @@ export default function EditNovelPage() {
         }
       }
 
-      // Refresh novel data to get updated chapters
       const novelResponse = await fetch(`/api/novels/${id}`);
       if (novelResponse.ok) {
         const updatedNovel = await novelResponse.json();
         setNovel(updatedNovel);
 
-        // Update selected chapter with the saved data
         if (isCreatingChapter) {
-          // For new chapters, find the newly created chapter
           const newChapter = updatedNovel.chapters.find(
             (c: Chapter) => c.title === title && c.order === (novel.chapters?.length || 0) + 1
           );
@@ -474,7 +730,6 @@ export default function EditNovelPage() {
           }
           setIsCreatingChapter(false);
         } else {
-          // Find and update the selected chapter
           const updatedChapter = updatedNovel.chapters.find(
             (c: Chapter) => c.id === selectedChapter?.id
           );
@@ -505,7 +760,6 @@ export default function EditNovelPage() {
           throw new Error('Failed to delete chapter');
         }
 
-        // Refresh novel data
         const novelResponse = await fetch(`/api/novels/${id}`);
         if (novelResponse.ok) {
           const updatedNovel = await novelResponse.json();
@@ -722,7 +976,7 @@ export default function EditNovelPage() {
                 <div className="rounded-lg border border-gray-200 bg-white p-6">
                   <div className="mb-4 flex items-center justify-between">
                     <h2 className="text-lg font-semibold text-gray-900">
-                      {isCreatingChapter ? 'Create New Chapter' : 'Edit Chapter'}
+                      {/* {isCreatingChapter ? 'Create New Chapter' : 'Edit Chapter'} */}
                     </h2>
                     {selectedChapter && (
                       <button
