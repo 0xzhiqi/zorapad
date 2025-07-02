@@ -7,23 +7,38 @@ import { bucket } from '@/lib/google-cloud-storage-client';
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const session = await auth();
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
     const { id } = await params;
 
     const chapter = await prisma.chapter.findFirst({
       where: {
         id: id,
+      },
+      include: {
         novel: {
-          authorId: session.user.id,
+          select: {
+            id: true,
+            authorId: true,
+            published: true,
+            seekPublicFeedback: true,
+          },
         },
       },
     });
 
     if (!chapter) {
       return NextResponse.json({ error: 'Chapter not found' }, { status: 404 });
+    }
+
+    // Check access permissions:
+    // 1. If user is the author, always allow
+    // 2. If novel is published, allow anyone (even unauthenticated users)
+    // 3. If novel seeks public feedback, allow authenticated users
+    const isAuthor = session?.user?.id === chapter.novel.authorId;
+    const isPublished = chapter.novel.published;
+    const seeksFeedback = chapter.novel.seekPublicFeedback;
+    
+    if (!isAuthor && !isPublished && (!seeksFeedback || !session?.user?.id)) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
     // If no content URL, return empty content

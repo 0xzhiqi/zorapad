@@ -49,6 +49,8 @@ model User {
   accounts      Account[]
   sessions      Session[]
   novels        Novel[]   // Add relation to novels
+  comments      Comment[] // Add relation to comments
+  replies       Reply[]   // Add relation to replies
 
   @@map("users")
 }
@@ -74,20 +76,55 @@ model Novel {
 }
 
 model Chapter {
-  id              String   @id @default(auto()) @map("_id") @db.ObjectId
+  id              String    @id @default(auto()) @map("_id") @db.ObjectId
   title           String
-  order           Int      // Chapter order within the novel
-  contentUrl      String?  // Google Cloud Storage URL for the chapter content
-  contentPath     String?  // Path in Google Cloud Storage
-  wordCount       Int      @default(0)
-  published       Boolean  @default(false)
-  novelId         String   @db.ObjectId
-  novel           Novel    @relation(fields: [novelId], references: [id], onDelete: Cascade)
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  order           Int       // Chapter order within the novel
+  contentUrl      String?   // Google Cloud Storage URL for the chapter content
+  contentPath     String?   // Path in Google Cloud Storage
+  wordCount       Int       @default(0)
+  published       Boolean   @default(false)
+  novelId         String    @db.ObjectId
+  novel           Novel     @relation(fields: [novelId], references: [id], onDelete: Cascade)
+  comments        Comment[] // Add relation to comments
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
 
   @@unique([novelId, order]) // Ensure unique order within each novel
   @@map("chapters")
+}
+
+model Comment {
+  id              String   @id @default(auto()) @map("_id") @db.ObjectId
+  content         String   // The comment text
+  highlightedText String   // The exact text that was highlighted (for reference)
+  startOffset     Int      // Start character position in the chapter content
+  endOffset       Int      // End character position in the chapter content
+  textLength      Int      // Length of highlighted text (for validation)
+  isAuthorComment Boolean  @default(false) // Whether comment is by the author
+  chapterId       String   @db.ObjectId
+  chapter         Chapter  @relation(fields: [chapterId], references: [id], onDelete: Cascade)
+  userId          String   @db.ObjectId
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  replies         Reply[]  // Replies to this comment
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@unique([chapterId, startOffset, endOffset]) // Prevent duplicate comments on same position
+  @@index([chapterId, startOffset]) // Index for efficient position-based queries
+  @@map("comments")
+}
+
+model Reply {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  content   String   // The reply text
+  commentId String   @db.ObjectId
+  comment   Comment  @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  userId    String   @db.ObjectId
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("replies")
 }
 
 model VerificationToken {

@@ -596,7 +596,7 @@ export default function NovelDetail() {
   const [isConnected, setIsConnected] = useState(false);
 
   // Create Yjs document
-  const ydoc = useMemo(() => new Y.Doc(), []);
+  const ydoc = useMemo(() => new Y.Doc(), [selectedChapter?.id]);
 
   // Check if Tiptap Cloud credentials are available
   const appId = process.env.NEXT_PUBLIC_TIPTAP_APP_ID;
