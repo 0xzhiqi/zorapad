@@ -26,12 +26,20 @@ import { createThirdwebClient } from 'thirdweb';
 import { baseSepolia as thirdwebBaseSepolia } from 'thirdweb/chains';
 import { approve } from 'thirdweb/extensions/erc20';
 import { useActiveAccount } from 'thirdweb/react';
-import { bytesToHex, createPublicClient, formatEther, http, parseEther, stringToBytes } from 'viem';
+import {
+  bytesToHex,
+  createPublicClient,
+  formatEther,
+  http,
+  keccak256,
+  parseEther,
+  stringToBytes,
+} from 'viem';
 import { baseSepolia } from 'viem/chains';
 
 import CommentsButton from './components/CommentsButton';
-import RequestsButton from './components/RequestsButton';
 import CommentsSidebar from './components/CommentsSidebar';
+import RequestsButton from './components/RequestsButton';
 import RequestsSidebar from './components/RequestsSidebar';
 
 interface Author {
@@ -235,7 +243,7 @@ const RequestDialog = ({
     'Initiating request',
     'Transferring token',
     'Creating bounty',
-    'Bounty created',
+    'Confirming Bounty',
   ];
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -549,8 +557,6 @@ const formatDateTime = (dateString: string) => {
   }
 };
 
-
-
 export default function NovelForComments() {
   const params = useParams();
   const novelId = params?.id as string;
@@ -626,10 +632,9 @@ export default function NovelForComments() {
         // Check if it's a request first (green highlighting)
         const matchingRequest = findRequestByPosition(clickPosition);
         if (matchingRequest) {
-          // Open requests sidebar if closed
-          if (!showRequestSidebar) {
-            setShowRequestSidebar(true);
-          }
+          // Close comments sidebar and open requests sidebar
+          setShowCommentSidebar(false);
+          setShowRequestSidebar(true);
 
           // Set the request to scroll to
           setScrollToRequestId(matchingRequest.id);
@@ -644,10 +649,9 @@ export default function NovelForComments() {
         // Find the comment that corresponds to this position
         const matchingComment = findCommentByPosition(clickPosition);
         if (matchingComment) {
-          // Open sidebar if closed
-          if (!showCommentSidebar) {
-            setShowCommentSidebar(true);
-          }
+          // Close requests sidebar and open comments sidebar
+          setShowRequestSidebar(false);
+          setShowCommentSidebar(true);
 
           // Set the comment to scroll to
           setScrollToCommentId(matchingComment.id);
@@ -667,9 +671,9 @@ export default function NovelForComments() {
             (request) => request.highlightedText === highlightedText
           );
           if (matchingRequest) {
-            if (!showRequestSidebar) {
-              setShowRequestSidebar(true);
-            }
+            // Close comments sidebar and open requests sidebar
+            setShowCommentSidebar(false);
+            setShowRequestSidebar(true);
             setScrollToRequestId(matchingRequest.id);
             setTimeout(() => {
               setScrollToRequestId(null);
@@ -681,9 +685,9 @@ export default function NovelForComments() {
             (comment) => comment.highlightedText === highlightedText
           );
           if (matchingComment) {
-            if (!showCommentSidebar) {
-              setShowCommentSidebar(true);
-            }
+            // Close requests sidebar and open comments sidebar
+            setShowRequestSidebar(false);
+            setShowCommentSidebar(true);
             setScrollToCommentId(matchingComment.id);
             setTimeout(() => {
               setScrollToCommentId(null);
@@ -1132,8 +1136,9 @@ export default function NovelForComments() {
       if (!requestId) {
         throw new Error('Request ID is required for contract interaction');
       }
-      const bytes = stringToBytes(requestId, { size: 32 });
-      const bountyId = bytesToHex(bytes) as `0x${string}`;
+      // const bytes = stringToBytes(requestId, { size: 32 });
+      // const bountyId = bytesToHex(bytes) as `0x${string}`;
+      const bountyId = keccak256(stringToBytes(requestId, { size: 32 }));
 
       // Step 1: Approve tokens for the novel contract
       const approvalTransaction = approve({
@@ -1175,6 +1180,7 @@ export default function NovelForComments() {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
+          contractBountyId: bountyId, // Add this line to store the contract bounty ID
           transactionHash: bountyResult.transactionHash,
           contractConfirmed: true,
         }),
@@ -1336,10 +1342,7 @@ export default function NovelForComments() {
           request.id === requestId
             ? {
                 ...request,
-                replies: [
-                  ...(request.replies || []).filter((r) => !r.isOptimistic),
-                  newReply,
-                ],
+                replies: [...(request.replies || []).filter((r) => !r.isOptimistic), newReply],
               }
             : request
         )
@@ -1632,6 +1635,7 @@ export default function NovelForComments() {
         onClose={() => setShowRequestSidebar(false)}
         novel={novel}
         scrollToRequestId={scrollToRequestId}
+        onRequestsUpdate={setRequests} // Pass the state setter function
       />
 
       {/* Comment Sidebar */}
