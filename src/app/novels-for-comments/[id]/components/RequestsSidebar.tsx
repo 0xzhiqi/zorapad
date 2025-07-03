@@ -150,7 +150,7 @@ function AwardDialog({
       const winningSubmissionBytes32 = keccak256(stringToBytes(replyId, { size: 32 }));
       console.log('winningSubmissionBytes32', winningSubmissionBytes32);
 
-      setCurrentStep('Step 1/2|Awarding');
+      setCurrentStep('Step 1/2|Releasing Bounty');
 
       // Call setRequestBountyWinner function
       const transaction = prepareContractCall({
@@ -166,7 +166,7 @@ function AwardDialog({
         account,
       });
 
-      setCurrentStep('Step 2/2|Finalising');
+      setCurrentStep('Step 2/2|Releasing Staking Rewards');
 
       // Update database
       const response = await fetch(`/api/requests/${requestId}/award`, {
@@ -204,7 +204,8 @@ function AwardDialog({
         <div className="mb-4">
           <h3 className="text-lg font-semibold text-green-800">Award Request</h3>
           <p className="mt-2 text-sm text-gray-600">
-            This will award the bounty to the selected reply and mark the request as completed.
+            This will award the bounty to the reply author and staking rewards to all who have
+            staked on it
           </p>
         </div>
 
