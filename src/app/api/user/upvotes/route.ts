@@ -2,6 +2,11 @@ import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 
+// Helper function to validate MongoDB ObjectID
+function isValidObjectId(id: string): boolean {
+  return /^[0-9a-fA-F]{24}$/.test(id);
+}
+
 export async function GET(request: NextRequest) {
   try {
     const session = await auth();
@@ -16,10 +21,17 @@ export async function GET(request: NextRequest) {
       return NextResponse.json([]);
     }
 
+    // Filter out invalid ObjectIDs (like temporary IDs)
+    const validReplyIds = replyIds.filter(isValidObjectId);
+    
+    if (validReplyIds.length === 0) {
+      return NextResponse.json([]);
+    }
+
     const upvotes = await prisma.replyUpvote.findMany({
       where: {
         userId: session.user.id,
-        replyId: { in: replyIds },
+        replyId: { in: validReplyIds },
       },
       select: {
         replyId: true,

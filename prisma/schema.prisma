@@ -55,6 +55,7 @@ model User {
   requestReplies RequestReply[] // Add relation to request replies
   replyUpvotes  ReplyUpvote[] // Add relation to reply upvotes
   replyStakes   ReplyStake[]  // Add relation to reply stakes
+  wonRequests   Request[] @relation("RequestWinner") // Add relation to won requests
 
   @@map("users")
 }
@@ -155,6 +156,13 @@ model Request {
   contractBountyId  String?  // The bounty ID used in the smart contract
   transactionHash   String?  // Transaction hash of the contract interaction
   contractConfirmed Boolean  @default(false) // Whether the contract interaction was successful
+  // Add award tracking fields
+  isAwarded         Boolean  @default(false) // Whether this request has been awarded
+  winnerId          String?  @db.ObjectId // The user ID of the winner
+  winner            User?    @relation("RequestWinner", fields: [winnerId], references: [id])
+  winningReplyId    String?  @db.ObjectId // The ID of the winning reply
+  awardTransactionHash String? // Transaction hash of the award transaction
+  awardedAt         DateTime? // When the award was given
   chapterId         String   @db.ObjectId
   chapter           Chapter  @relation(fields: [chapterId], references: [id], onDelete: Cascade)
   userId            String   @db.ObjectId

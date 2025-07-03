@@ -112,6 +112,11 @@ interface Request {
   contractBountyId?: string;
   transactionHash?: string;
   contractConfirmed: boolean;
+  isAwarded: boolean;
+  winnerId?: string;
+  winningReplyId?: string;
+  awardTransactionHash?: string;
+  awardedAt?: string;
   user: User;
   createdAt: string;
   replies: RequestReply[];
@@ -266,10 +271,10 @@ const RequestDialog = ({
   if (!isOpen || !selection) return null;
 
   return (
-    <div className="bg-opacity-50 fixed inset-0 z-50 flex items-center justify-center bg-black p-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-green-900/20 p-4 backdrop-blur-sm">
       <div className="w-full max-w-md rounded-lg bg-white p-6 shadow-xl">
         <div className="mb-4 flex items-center justify-between">
-          <h3 className="text-lg font-semibold text-gray-900">Create Request</h3>
+          <h3 className="text-lg font-semibold text-green-700">Create Request</h3>
           <button
             onClick={onClose}
             className="text-gray-400 hover:text-gray-600"
@@ -632,9 +637,10 @@ export default function NovelForComments() {
         // Check if it's a request first (green highlighting)
         const matchingRequest = findRequestByPosition(clickPosition);
         if (matchingRequest) {
-          // Close comments sidebar and open requests sidebar
-          setShowCommentSidebar(false);
-          setShowRequestSidebar(true);
+          // Open requests sidebar if closed
+          if (!showRequestSidebar) {
+            setShowRequestSidebar(true);
+          }
 
           // Set the request to scroll to
           setScrollToRequestId(matchingRequest.id);
@@ -649,9 +655,10 @@ export default function NovelForComments() {
         // Find the comment that corresponds to this position
         const matchingComment = findCommentByPosition(clickPosition);
         if (matchingComment) {
-          // Close requests sidebar and open comments sidebar
-          setShowRequestSidebar(false);
-          setShowCommentSidebar(true);
+          // Open sidebar if closed
+          if (!showCommentSidebar) {
+            setShowCommentSidebar(true);
+          }
 
           // Set the comment to scroll to
           setScrollToCommentId(matchingComment.id);
@@ -671,9 +678,9 @@ export default function NovelForComments() {
             (request) => request.highlightedText === highlightedText
           );
           if (matchingRequest) {
-            // Close comments sidebar and open requests sidebar
-            setShowCommentSidebar(false);
-            setShowRequestSidebar(true);
+            if (!showRequestSidebar) {
+              setShowRequestSidebar(true);
+            }
             setScrollToRequestId(matchingRequest.id);
             setTimeout(() => {
               setScrollToRequestId(null);
@@ -685,9 +692,9 @@ export default function NovelForComments() {
             (comment) => comment.highlightedText === highlightedText
           );
           if (matchingComment) {
-            // Close requests sidebar and open comments sidebar
-            setShowRequestSidebar(false);
-            setShowCommentSidebar(true);
+            if (!showCommentSidebar) {
+              setShowCommentSidebar(true);
+            }
             setScrollToCommentId(matchingComment.id);
             setTimeout(() => {
               setScrollToCommentId(null);

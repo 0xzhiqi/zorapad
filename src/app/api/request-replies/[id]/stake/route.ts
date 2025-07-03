@@ -10,7 +10,7 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { id: replyId } = params;
+    const { id: replyId } = await params;
     const body = await request.json();
     // Fix: Change 'stakeAmount' to 'amount' to match frontend
     const { amount, transactionHash, submissionId } = body;

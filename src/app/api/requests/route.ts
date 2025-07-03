@@ -16,11 +16,46 @@ export async function GET(request: NextRequest) {
       where: {
         chapterId: chapterId,
       },
-      include: {
-        user: true,
+      select: {
+        id: true,
+        content: true,
+        highlightedText: true,
+        startOffset: true,
+        endOffset: true,
+        textLength: true,
+        bountyAmount: true,
+        stakersReward: true,
+        contractBountyId: true,
+        transactionHash: true,
+        contractConfirmed: true,
+        isAwarded: true,
+        winnerId: true,
+        winningReplyId: true,
+        awardTransactionHash: true,
+        awardedAt: true,
+        createdAt: true,
+        updatedAt: true,
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            walletAddress: true,
+          },
+        },
         replies: {
-          include: {
-            user: true,
+          select: {
+            id: true,
+            content: true,
+            createdAt: true,
+            user: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+                walletAddress: true,
+              },
+            },
           },
           orderBy: {
             createdAt: 'asc',

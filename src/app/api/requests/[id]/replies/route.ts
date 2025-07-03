@@ -11,7 +11,7 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
     }
 
     const { content } = await request.json();
-    const requestId = params.id;
+    const { id: requestId } = await params;
 
     // Check if user exists
     const user = await prisma.user.findUnique({

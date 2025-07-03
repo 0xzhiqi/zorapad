@@ -4,11 +4,14 @@ import { useEffect, useRef, useState } from 'react';
 
 import {
   CircleDollarSign,
+  Crown,
+  HandCoins,
   Loader2,
   MessageCircleQuestion,
   Reply,
   Send,
   ThumbsUp,
+  TimerOff,
   Wallet,
   X,
 } from 'lucide-react';
@@ -24,6 +27,7 @@ interface User {
   id: string;
   name?: string;
   email?: string;
+  walletAddress?: string;
 }
 
 interface RequestReply {
@@ -45,6 +49,11 @@ interface Request {
   contractBountyId?: string;
   transactionHash?: string;
   contractConfirmed: boolean;
+  isAwarded: boolean;
+  winnerId?: string;
+  winningReplyId?: string;
+  awardTransactionHash?: string;
+  awardedAt?: string;
   user: User;
   createdAt: string;
   replies: RequestReply[];
@@ -69,21 +78,173 @@ interface RequestsSidebarProps {
   isVisible?: boolean;
   onClose?: () => void;
   scrollToRequestId?: string | null;
-  // Removed onRequestsUpdate as it's not being passed from page.tsx
 }
 
 interface UpvoteDialogProps {
   isOpen: boolean;
   onClose: () => void;
   replyId: string | null;
-  requestId: string | null; // Add requestId prop
+  requestId: string | null;
   novel?: Novel;
+  onSuccess: () => void;
+}
+
+interface AwardDialogProps {
+  isOpen: boolean;
+  onClose: () => void;
+  replyId: string | null;
+  requestId: string | null;
+  novel?: Novel;
+  winnerWalletAddress?: string;
+  winnerId?: string;
   onSuccess: () => void;
 }
 
 interface ReplyStats {
   upvotes: number;
   totalStaked: number;
+}
+
+function AwardDialog({
+  isOpen,
+  onClose,
+  replyId,
+  requestId,
+  novel,
+  winnerWalletAddress,
+  winnerId,
+  onSuccess,
+}: AwardDialogProps) {
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [currentStep, setCurrentStep] = useState('');
+  const account = useActiveAccount();
+
+  const handleAward = async () => {
+    if (
+      !replyId ||
+      !requestId ||
+      !novel?.novelAddress ||
+      !account ||
+      !winnerWalletAddress ||
+      !winnerId
+    )
+      return;
+
+    setIsProcessing(true);
+
+    try {
+      setCurrentStep('Preparing|...');
+
+      // Get the novel contract
+      const novelContract = getContract({
+        client,
+        chain: baseSepolia,
+        address: novel.novelAddress as `0x${string}`,
+      });
+
+      // Convert requestId to bytes32 for bountyId
+      const bountyIdBytes32 = keccak256(stringToBytes(requestId, { size: 32 }));
+      console.log('bountyIdBytes32', bountyIdBytes32);
+
+      // Convert replyId to bytes32 for winningSubmission
+      const winningSubmissionBytes32 = keccak256(stringToBytes(replyId, { size: 32 }));
+      console.log('winningSubmissionBytes32', winningSubmissionBytes32);
+
+      setCurrentStep('Step 1/2|Awarding');
+
+      // Call setRequestBountyWinner function
+      const transaction = prepareContractCall({
+        contract: novelContract,
+        method:
+          'function setRequestBountyWinner(bytes32 _bountyId, address _winner, bytes32 _winningSubmission)',
+        params: [bountyIdBytes32, winnerWalletAddress as `0x${string}`, winningSubmissionBytes32],
+      });
+
+      // Send the transaction
+      const result = await sendTransaction({
+        transaction,
+        account,
+      });
+
+      setCurrentStep('Step 2/2|Finalising');
+
+      // Update database
+      const response = await fetch(`/api/requests/${requestId}/award`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          winningReplyId: replyId,
+          winnerId: winnerId,
+          awardTransactionHash: result.transactionHash,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to update database');
+      }
+
+      setTimeout(() => {
+        onSuccess();
+        onClose();
+        setIsProcessing(false);
+        setCurrentStep('');
+      }, 1000);
+    } catch (error) {
+      console.error('Award failed:', error);
+      setIsProcessing(false);
+      setCurrentStep('');
+    }
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-green-900/20 backdrop-blur-sm">
+      <div className="mx-4 w-full max-w-md rounded-lg bg-white p-6 shadow-xl">
+        <div className="mb-4">
+          <h3 className="text-lg font-semibold text-green-800">Award Request</h3>
+          <p className="mt-2 text-sm text-gray-600">
+            This will award the bounty to the selected reply and mark the request as completed.
+          </p>
+        </div>
+
+        {isProcessing ? (
+          <div className="py-8 text-center">
+            <Loader2 className="mx-auto mb-4 h-8 w-8 animate-spin text-green-600" />
+            {currentStep && (
+              <div className="space-y-2">
+                {currentStep.includes('|') ? (
+                  <>
+                    <h4 className="text-lg font-semibold text-green-800">
+                      {currentStep.split('|')[0]}
+                    </h4>
+                    <p className="text-green-700">{currentStep.split('|')[1]}</p>
+                  </>
+                ) : (
+                  <p className="text-green-700">{currentStep}</p>
+                )}
+              </div>
+            )}
+          </div>
+        ) : (
+          <div className="flex space-x-3">
+            <button
+              onClick={onClose}
+              className="flex-1 rounded-lg border border-gray-300 px-4 py-2 text-gray-700 hover:bg-gray-50"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleAward}
+              className="flex-1 rounded-lg bg-green-600 px-4 py-2 text-white hover:bg-green-700"
+            >
+              Award
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
 }
 
 function UpvoteDialog({
@@ -162,7 +323,7 @@ function UpvoteDialog({
         throw new Error(`Failed to upvote: ${errorData.error || 'Unknown error'}`);
       }
 
-      setCurrentStep('Upvote complete');
+      setCurrentStep('Completing upvote');
       setTimeout(() => {
         onSuccess();
         onClose();
@@ -390,8 +551,13 @@ export default function RequestsSidebar({
   const [replyContent, setReplyContent] = useState('');
   const [submittingReply, setSubmittingReply] = useState(false);
   const [upvoteDialogOpen, setUpvoteDialogOpen] = useState(false);
+  const [awardDialogOpen, setAwardDialogOpen] = useState(false);
   const [selectedReplyId, setSelectedReplyId] = useState<string | null>(null);
   const [selectedRequestId, setSelectedRequestId] = useState<string | null>(null);
+  const [selectedWinnerWalletAddress, setSelectedWinnerWalletAddress] = useState<
+    string | undefined
+  >(undefined);
+  const [selectedWinnerId, setSelectedWinnerId] = useState<string | undefined>(undefined);
 
   // Add missing state variables
   const [replyStats, setReplyStats] = useState<Record<string, ReplyStats>>({});
@@ -400,7 +566,7 @@ export default function RequestsSidebar({
   // Add missing refs
   const replyFormRef = useRef<HTMLDivElement>(null);
   const requestRefs = useRef<Record<string, HTMLDivElement | null>>({});
-  const scrollContainerRef = useRef<HTMLDivElement>(null); // Add this missing ref
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
 
   // Use external replyingTo if provided, otherwise use internal
   const replyingTo = externalReplyingTo !== undefined ? externalReplyingTo : internalReplyingTo;
@@ -417,6 +583,19 @@ export default function RequestsSidebar({
     setUpvoteDialogOpen(true);
   };
 
+  const handleAwardClick = (
+    replyId: string,
+    requestId: string,
+    winnerWalletAddress: string,
+    winnerId: string
+  ) => {
+    setSelectedReplyId(replyId);
+    setSelectedRequestId(requestId);
+    setSelectedWinnerWalletAddress(winnerWalletAddress);
+    setSelectedWinnerId(winnerId);
+    setAwardDialogOpen(true);
+  };
+
   const handleUpvoteSuccess = () => {
     // Refresh reply stats
     if (selectedReplyId) {
@@ -428,6 +607,24 @@ export default function RequestsSidebar({
           setUserUpvotes((prev) => new Set([...prev, selectedReplyId]));
         })
         .catch((error) => console.error('Failed to refresh stats:', error));
+    }
+  };
+
+  const handleAwardSuccess = () => {
+    // Update the specific request to show it's been awarded
+    if (selectedRequestId && selectedReplyId) {
+      const updatedRequests = requests.map((request) => {
+        if (request.id === selectedRequestId) {
+          return {
+            ...request,
+            isAwarded: true,
+            winningReplyId: selectedReplyId,
+            awardedAt: new Date().toISOString(),
+          };
+        }
+        return request;
+      });
+      onRequestsUpdate(updatedRequests);
     }
   };
 
@@ -584,10 +781,15 @@ export default function RequestsSidebar({
     const fetchReplyData = async () => {
       if (!session?.user?.id || requests.length === 0) return;
 
-      const allReplyIds = requests.flatMap((request) => request.replies.map((reply) => reply.id));
+      const allReplyIds = requests.flatMap((request) =>
+        (request.replies || []).map((reply) => reply.id)
+      );
 
-      // Fetch stats for all replies
-      const statsPromises = allReplyIds.map(async (replyId) => {
+      // Filter out temporary IDs before making API calls
+      const validReplyIds = allReplyIds.filter((id) => !id.startsWith('temp-'));
+
+      // Fetch stats for all valid replies
+      const statsPromises = validReplyIds.map(async (replyId) => {
         try {
           const response = await fetch(`/api/request-replies/${replyId}/stats`);
           if (response.ok) {
@@ -609,15 +811,19 @@ export default function RequestsSidebar({
       });
       setReplyStats(newStats);
 
-      // Fetch user upvotes
-      try {
-        const upvoteResponse = await fetch(`/api/user/upvotes?replyIds=${allReplyIds.join(',')}`);
-        if (upvoteResponse.ok) {
-          const upvotedReplyIds = await upvoteResponse.json();
-          setUserUpvotes(new Set(upvotedReplyIds));
+      // Fetch user upvotes only for valid IDs
+      if (validReplyIds.length > 0) {
+        try {
+          const upvoteResponse = await fetch(
+            `/api/user/upvotes?replyIds=${validReplyIds.join(',')}`
+          );
+          if (upvoteResponse.ok) {
+            const upvotedReplyIds = await upvoteResponse.json();
+            setUserUpvotes(new Set(upvotedReplyIds));
+          }
+        } catch (error) {
+          console.error('Failed to fetch user upvotes:', error);
         }
-      } catch (error) {
-        console.error('Failed to fetch user upvotes:', error);
       }
     };
 
@@ -645,12 +851,11 @@ export default function RequestsSidebar({
             <div className="flex items-center space-x-2">
               <MessageCircleQuestion className="h-5 w-5" />
               <h3 className="text-lg font-semibold">Requests</h3>
-              <span className="rounded-full bg-white/20 px-2 py-1 text-xs">0</span>
             </div>
             {onClose && (
               <button
                 onClick={onClose}
-                className="rounded-lg p-1 transition-colors duration-200 hover:bg-white/20"
+                className="rounded-full p-1 transition-colors duration-200 hover:bg-white/20"
               >
                 <X className="h-5 w-5" />
               </button>
@@ -658,12 +863,14 @@ export default function RequestsSidebar({
           </div>
         </div>
 
-        {/* Empty state content */}
+        {/* Empty state */}
         <div className="flex flex-1 items-center justify-center p-8">
           <div className="text-center">
-            <MessageCircleQuestion className="mx-auto mb-4 h-12 w-12 text-gray-300" />
-            <p className="text-sm text-gray-500">No requests yet.</p>
-            <p className="mt-1 text-xs text-gray-400">Select text to add the first request!</p>
+            <MessageCircleQuestion className="mx-auto mb-4 h-12 w-12 text-gray-400" />
+            <h3 className="mb-2 text-lg font-medium text-gray-900">No requests yet</h3>
+            <p className="text-gray-500">
+              Highlight text in the chapter to create your first request for feedback.
+            </p>
           </div>
         </div>
       </div>
@@ -685,12 +892,14 @@ export default function RequestsSidebar({
           <div className="flex items-center space-x-2">
             <MessageCircleQuestion className="h-5 w-5" />
             <h3 className="text-lg font-semibold">Requests</h3>
-            <span className="rounded-full bg-white/20 px-2 py-1 text-xs">{requests.length}</span>
+            <span className="rounded-full bg-white/20 px-2 py-0.5 text-sm font-medium">
+              {requests.length}
+            </span>
           </div>
           {onClose && (
             <button
               onClick={onClose}
-              className="rounded-lg p-1 transition-colors duration-200 hover:bg-white/20"
+              className="rounded-full p-1 transition-colors duration-200 hover:bg-white/20"
             >
               <X className="h-5 w-5" />
             </button>
@@ -700,8 +909,6 @@ export default function RequestsSidebar({
 
       {/* Requests content - Scrollable area */}
       <div ref={scrollContainerRef} className="flex-1 overflow-y-auto">
-        {' '}
-        {/* Add ref here */}
         <div className="p-6 pb-20">
           <div className="space-y-6">
             {requests.map((request) => {
@@ -741,7 +948,7 @@ export default function RequestsSidebar({
                       <div className="mb-4 flex items-center space-x-4 rounded-lg bg-green-50 p-3">
                         <div className="flex-1 flex-col space-y-1">
                           <div className="flex items-center space-x-1.5">
-                            <CircleDollarSign className="h-4 w-4 text-green-600" />{' '}
+                            <CircleDollarSign className="h-4 w-4 text-green-600" />
                             <span className="text-sm font-medium text-green-800"> Bounty</span>
                           </div>
                           <div className="text-sm font-semibold text-green-800">
@@ -760,6 +967,7 @@ export default function RequestsSidebar({
                           </div>
                         </div>
                       </div>
+
                       {/* Request metadata */}
                       <div className="flex items-center justify-between">
                         <div className="flex items-center space-x-2">
@@ -800,15 +1008,31 @@ export default function RequestsSidebar({
 
                   {/* Replies Section */}
                   <div className="mt-4 space-y-3 border-t border-gray-200 pt-4">
-                    {request.replies.map((reply) => {
+                    {(request.replies || []).map((reply) => {
                       const replyDateTime = formatDateTime(reply.createdAt);
                       const stats = replyStats[reply.id] || { upvotes: 0, totalStaked: 0 };
+                      const isWinningReply = request.winningReplyId === reply.id;
+                      const isAuthor = novel && session?.user?.id === novel.author.id;
+                      const canAward = isAuthor && !request.isAwarded && reply.user.walletAddress;
+
                       return (
                         <div
                           key={reply.id}
-                          className={`rounded-lg border-l-4 border-green-200 bg-gray-50 p-3 ${reply.isOptimistic ? 'animate-pulse opacity-70' : ''}`}
+                          className={`rounded-lg border-l-4 ${isWinningReply ? 'border-yellow-400 bg-yellow-50' : 'border-green-200 bg-gray-50'} p-3 ${reply.isOptimistic ? 'animate-pulse opacity-70' : ''}`}
                         >
-                          <p className="mb-2 text-sm text-gray-800">{reply.content}</p>
+                          <div className="mb-2 flex items-start justify-between">
+                            <p className="flex-1 text-sm text-gray-800">{reply.content}</p>
+                            {isWinningReply && (
+                              <div className="ml-2 flex flex-shrink-0 items-center space-x-1">
+                                <div className="flex items-center space-x-1 rounded-full bg-yellow-100 px-2 py-1">
+                                  <Crown className="h-3 w-3 text-yellow-600" />
+                                  <span className="text-xs font-medium text-yellow-800">
+                                    Awarded
+                                  </span>
+                                </div>
+                              </div>
+                            )}
+                          </div>
 
                           <div className="flex items-center justify-between">
                             {/* Reply actions */}
@@ -817,34 +1041,74 @@ export default function RequestsSidebar({
                               <div className="flex items-center space-x-4 text-xs text-gray-500">
                                 <div className="flex items-center space-x-1">
                                   <ThumbsUp className="h-3 w-3" />
-                                  <span>{replyStats[reply.id]?.upvotes || 0} </span>
+                                  <span>
+                                    {reply.id.startsWith('temp-')
+                                      ? 0
+                                      : replyStats[reply.id]?.upvotes || 0}{' '}
+                                  </span>
                                 </div>
 
-                                <button
-                                  onClick={() => handleUpvoteClick(reply.id, request.id)}
-                                  disabled={userUpvotes.has(reply.id)}
-                                  className={`flex items-center space-x-1 rounded px-2 py-1 text-xs transition-colors ${
-                                    userUpvotes.has(reply.id)
-                                      ? 'cursor-not-allowed bg-green-100 text-green-700'
-                                      : 'text-gray-500 hover:bg-green-50 hover:text-green-600'
-                                  }`}
-                                >
-                                  <ThumbsUp
-                                    className={`h-3 w-3 ${userUpvotes.has(reply.id) ? 'fill-current' : ''}`}
-                                  />
-                                  <span>{userUpvotes.has(reply.id) ? 'Voted' : 'Upvote'}</span>
-                                </button>
+                                {request.isAwarded ? (
+                                  <div className="flex items-center space-x-1.5 rounded-full px-3 py-1.5 text-xs font-semibold text-slate-600">
+                                    <TimerOff className="h-3 w-3 text-slate-500" strokeWidth={4} />
+                                    <span>Voting Closed</span>
+                                  </div>
+                                ) : (
+                                  <button
+                                    onClick={() => handleUpvoteClick(reply.id, request.id)}
+                                    disabled={
+                                      userUpvotes.has(reply.id) || reply.id.startsWith('temp-')
+                                    }
+                                    className={`flex items-center space-x-1 rounded-md border px-3 py-1.5 text-xs font-medium transition-all duration-200 ${
+                                      userUpvotes.has(reply.id) || reply.id.startsWith('temp-')
+                                        ? 'cursor-not-allowed border-green-200 bg-green-100 text-green-700'
+                                        : 'border-gray-300 bg-white text-gray-700 shadow-sm hover:border-green-400 hover:bg-green-50 hover:text-green-700 hover:shadow-md active:scale-95'
+                                    }`}
+                                  >
+                                    <ThumbsUp
+                                      className={`h-3 w-3 ${
+                                        userUpvotes.has(reply.id) ? 'fill-current' : ''
+                                      }`}
+                                    />
+                                    <span>
+                                      {reply.id.startsWith('temp-')
+                                        ? 'Sending...'
+                                        : userUpvotes.has(reply.id)
+                                          ? 'Voted'
+                                          : 'Upvote'}
+                                    </span>
+                                  </button>
+                                )}
                               </div>
 
                               {/* Display staked tokens below */}
-                              {replyStats[reply.id]?.totalStaked > 0 && (
-                                <div className="flex items-center space-x-1 text-xs text-gray-500">
-                                  <CircleDollarSign className="h-3 w-3" />
-                                  <span>
-                                    {Number(replyStats[reply.id]?.totalStaked || 0).toFixed(2)}{' '}
-                                    {novel?.coinSymbol || 'tokens'} staked
-                                  </span>
-                                </div>
+                              {!reply.id.startsWith('temp-') &&
+                                replyStats[reply.id]?.totalStaked > 0 && (
+                                  <div className="flex items-center space-x-1 text-xs text-gray-500">
+                                    <CircleDollarSign className="h-3 w-3" />
+                                    <span>
+                                      {Number(replyStats[reply.id]?.totalStaked || 0).toFixed(2)}{' '}
+                                      {novel?.coinSymbol || 'tokens'} staked
+                                    </span>
+                                  </div>
+                                )}
+
+                              {/* Award button for novel author */}
+                              {canAward && !reply.id.startsWith('temp-') && (
+                                <button
+                                  onClick={() =>
+                                    handleAwardClick(
+                                      reply.id,
+                                      request.id,
+                                      reply.user.walletAddress!,
+                                      reply.user.id
+                                    )
+                                  }
+                                  className="flex items-center space-x-1 rounded bg-green-600 px-2 py-1 text-xs text-white transition-colors hover:bg-green-700"
+                                >
+                                  <HandCoins className="h-3 w-3" />
+                                  <span>Award</span>
+                                </button>
                               )}
                             </div>
 
@@ -860,9 +1124,6 @@ export default function RequestsSidebar({
                                     <span className="ml-1.5 inline-flex items-center rounded-full bg-green-100 px-1.5 py-0.5 text-xs font-medium text-green-800">
                                       Author
                                     </span>
-                                  )}
-                                  {reply.isOptimistic && (
-                                    <span className="ml-1 text-green-500 italic">Sending...</span>
                                   )}
                                 </span>
                                 <div className="text-xs text-gray-400">
@@ -937,9 +1198,20 @@ export default function RequestsSidebar({
         isOpen={upvoteDialogOpen}
         onClose={() => setUpvoteDialogOpen(false)}
         replyId={selectedReplyId}
-        requestId={selectedRequestId} // Pass the request ID
+        requestId={selectedRequestId}
         novel={novel}
         onSuccess={handleUpvoteSuccess}
+      />
+
+      <AwardDialog
+        isOpen={awardDialogOpen}
+        onClose={() => setAwardDialogOpen(false)}
+        replyId={selectedReplyId}
+        requestId={selectedRequestId}
+        novel={novel}
+        winnerWalletAddress={selectedWinnerWalletAddress}
+        winnerId={selectedWinnerId}
+        onSuccess={handleAwardSuccess}
       />
     </div>
   );
