@@ -5,10 +5,34 @@ import { useEffect, useRef, useState } from 'react';
 import Highlight from '@tiptap/extension-highlight';
 import { Editor, EditorContent, useEditor } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
-import { ChevronDown, ChevronLeft, Loader2, MessageCircle, Plus, Send, X } from 'lucide-react';
+import { getCoin } from '@zoralabs/coins-sdk';
+import {
+  ChevronDown,
+  ChevronLeft,
+  Loader2,
+  MessageCircle,
+  MessageCircleQuestion,
+  Plus,
+  Reply,
+  Send,
+  Wallet,
+  X,
+} from 'lucide-react';
 import { useSession } from 'next-auth/react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
+import { getContract, prepareContractCall, sendTransaction } from 'thirdweb';
+import { createThirdwebClient } from 'thirdweb';
+import { baseSepolia as thirdwebBaseSepolia } from 'thirdweb/chains';
+import { approve } from 'thirdweb/extensions/erc20';
+import { useActiveAccount } from 'thirdweb/react';
+import { bytesToHex, createPublicClient, formatEther, http, parseEther, stringToBytes } from 'viem';
+import { baseSepolia } from 'viem/chains';
+
+import CommentsButton from './components/CommentsButton';
+import RequestsButton from './components/RequestsButton';
+import CommentsSidebar from './components/CommentsSidebar';
+import RequestsSidebar from './components/RequestsSidebar';
 
 interface Author {
   id: string;
@@ -29,6 +53,10 @@ interface Novel {
   title: string;
   author: Author;
   chapters: Chapter[];
+  novelAddress?: string; // Address of the deployed novel contract
+  coinTransactionHash?: string; // Transaction hash of coin creation
+  coinAddress?: string; // Address of the coin contract
+  coinSymbol?: string; // Symbol of the coin
 }
 
 interface User {
@@ -55,6 +83,30 @@ interface Comment {
   user: User;
   replies: Reply[];
   createdAt: string;
+}
+
+interface RequestReply {
+  id: string;
+  content: string;
+  user: User;
+  createdAt: string;
+  isOptimistic?: boolean;
+}
+
+interface Request {
+  id: string;
+  content: string;
+  highlightedText: string;
+  startOffset: number;
+  endOffset: number;
+  bountyAmount: string;
+  stakersReward: string;
+  contractBountyId?: string;
+  transactionHash?: string;
+  contractConfirmed: boolean;
+  user: User;
+  createdAt: string;
+  replies: RequestReply[];
 }
 
 interface Selection {
@@ -154,6 +206,239 @@ const ChapterDropdown = ({
   );
 };
 
+const RequestDialog = ({
+  isOpen,
+  onClose,
+  selection,
+  onSubmit,
+  loading,
+  tokenBalance,
+  coinSymbol,
+  progressStep,
+  showSuccess,
+}: {
+  isOpen: boolean;
+  onClose: () => void;
+  selection: Selection | null;
+  onSubmit: (content: string, bountyAmount: number, stakersReward: number) => void;
+  loading: boolean;
+  tokenBalance: number;
+  coinSymbol: string;
+  progressStep?: number;
+  showSuccess?: boolean;
+}) => {
+  const [content, setContent] = useState('');
+  const [bountyAmount, setBountyAmount] = useState('');
+  const [stakersReward, setStakersReward] = useState('');
+
+  const progressSteps = [
+    'Initiating request',
+    'Transferring token',
+    'Creating bounty',
+    'Bounty created',
+  ];
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    const bounty = parseFloat(bountyAmount) || 0;
+    const stakers = parseFloat(stakersReward) || 0;
+
+    if (content.trim() && (bounty > 0 || stakers > 0)) {
+      if (bounty + stakers <= tokenBalance) {
+        onSubmit(content.trim(), bounty, stakers);
+        // Don't clear form fields during loading
+      } else {
+        alert(
+          `Total amount (${bounty + stakers}) exceeds your token balance (${tokenBalance.toFixed(2)})`
+        );
+      }
+    }
+  };
+
+  if (!isOpen || !selection) return null;
+
+  return (
+    <div className="bg-opacity-50 fixed inset-0 z-50 flex items-center justify-center bg-black p-4">
+      <div className="w-full max-w-md rounded-lg bg-white p-6 shadow-xl">
+        <div className="mb-4 flex items-center justify-between">
+          <h3 className="text-lg font-semibold text-gray-900">Create Request</h3>
+          <button
+            onClick={onClose}
+            className="text-gray-400 hover:text-gray-600"
+            disabled={loading}
+          >
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+
+        {/* Success Message */}
+        {showSuccess && (
+          <div className="mb-4 rounded-lg border border-green-200 bg-green-50 p-4 shadow-sm">
+            <div className="flex items-center">
+              <div className="flex-shrink-0">
+                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-green-500">
+                  <svg className="h-5 w-5 text-white" viewBox="0 0 20 20" fill="currentColor">
+                    <path
+                      fillRule="evenodd"
+                      d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+                      clipRule="evenodd"
+                    />
+                  </svg>
+                </div>
+              </div>
+              <div className="ml-3">
+                <p className="text-sm font-medium text-green-800">
+                  Request Bounty created successfully!
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Progress Bar */}
+        {loading && progressStep !== undefined && (
+          <div className="mb-6">
+            <div className="flex items-center justify-between">
+              {progressSteps.map((stepTitle, index) => (
+                <div key={index} className="flex items-center">
+                  <div className="flex flex-col items-center">
+                    <div
+                      className={`flex h-8 w-8 items-center justify-center rounded-full border-2 ${
+                        index < progressStep
+                          ? 'border-green-500 bg-green-500 text-white'
+                          : index === progressStep
+                            ? 'border-green-500 bg-green-500 text-white'
+                            : 'border-gray-300 bg-gray-200 text-gray-500'
+                      }`}
+                    >
+                      {index < progressStep ? (
+                        <svg className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                          <path
+                            fillRule="evenodd"
+                            d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                            clipRule="evenodd"
+                          />
+                        </svg>
+                      ) : index === progressStep ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <span className="text-xs font-medium">{index + 1}</span>
+                      )}
+                    </div>
+                    <span
+                      className={`mt-1 max-w-[60px] text-center text-xs font-medium ${
+                        index < progressStep
+                          ? 'text-green-600'
+                          : index === progressStep
+                            ? 'text-green-600'
+                            : 'text-gray-500'
+                      }`}
+                    >
+                      {stepTitle}
+                    </span>
+                  </div>
+                  {index < progressSteps.length - 1 && (
+                    <div
+                      className={`mx-2 h-0.5 w-8 ${
+                        index < progressStep ? 'bg-green-300' : 'bg-gray-300'
+                      }`}
+                    />
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        <div className="mb-4 rounded-lg border border-green-200 bg-green-100 p-3">
+          <p className="mb-1 text-sm font-medium text-gray-700">Selected text:</p>
+          <p className="text-sm font-medium text-green-800">"{selection.text}"</p>
+        </div>
+
+        <form onSubmit={handleSubmit}>
+          <textarea
+            value={content}
+            onChange={(e) => setContent(e.target.value)}
+            placeholder="Write your request..."
+            className="w-full resize-none rounded-lg border border-gray-300 p-3 text-sm text-gray-900 placeholder-gray-500 focus:border-green-500 focus:ring-2 focus:ring-green-200 focus:outline-none disabled:cursor-not-allowed disabled:bg-gray-50"
+            rows={4}
+            disabled={loading}
+            required
+            autoFocus={!loading}
+          />
+
+          {/* Token Balance Display */}
+          <div className="mt-4 flex items-center space-x-2 rounded-lg bg-gray-50 p-3">
+            <Wallet className="h-5 w-5 text-gray-700" />
+            <span className="text-sm font-medium text-gray-700">Wallet Balance:</span>{' '}
+            <span className="text-sm font-medium text-gray-700">
+              {tokenBalance.toFixed(2)} {coinSymbol} tokens
+            </span>
+          </div>
+
+          {/* Bounty Amount */}
+          <div className="mt-4">
+            <label className="mb-2 block text-sm font-medium text-gray-700">Bounty</label>
+            <input
+              type="number"
+              value={bountyAmount}
+              onChange={(e) => setBountyAmount(e.target.value)}
+              placeholder={`Number of ${coinSymbol} tokens`}
+              className="w-full rounded-lg border border-gray-300 p-3 text-sm text-gray-900 placeholder-gray-500 focus:border-green-500 focus:ring-2 focus:ring-green-200 focus:outline-none disabled:cursor-not-allowed disabled:bg-gray-50"
+              min="0"
+              step="0.01"
+              disabled={loading}
+            />
+          </div>
+
+          {/* Stakers Reward */}
+          <div className="mt-4">
+            <label className="mb-2 block text-sm font-medium text-gray-700">Stakers Rewards</label>
+            <input
+              type="number"
+              value={stakersReward}
+              onChange={(e) => setStakersReward(e.target.value)}
+              placeholder={`Number of ${coinSymbol} tokens`}
+              className="w-full rounded-lg border border-gray-300 p-3 text-sm text-gray-900 placeholder-gray-500 focus:border-green-500 focus:ring-2 focus:ring-green-200 focus:outline-none disabled:cursor-not-allowed disabled:bg-gray-50"
+              min="0"
+              step="0.01"
+              disabled={loading}
+            />
+          </div>
+
+          {/* Total validation */}
+          {(parseFloat(bountyAmount) || 0) + (parseFloat(stakersReward) || 0) > tokenBalance && (
+            <div className="mt-2 text-sm text-red-600">Total amount exceeds your token balance</div>
+          )}
+
+          <div className="mt-6 flex justify-end space-x-3">
+            <button
+              type="button"
+              onClick={onClose}
+              className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 focus:ring-2 focus:ring-green-200 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50"
+              disabled={loading}
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              className="flex items-center space-x-2 rounded-lg bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700 focus:ring-2 focus:ring-green-500 focus:ring-offset-2 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50"
+              disabled={
+                loading ||
+                !content.trim() ||
+                (parseFloat(bountyAmount) || 0) + (parseFloat(stakersReward) || 0) > tokenBalance
+              }
+            >
+              {loading && <Loader2 className="h-4 w-4 animate-spin" />}
+              <span>Create Request</span>
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+};
+
 const CommentDialog = ({
   isOpen,
   onClose,
@@ -234,288 +519,43 @@ const CommentDialog = ({
   );
 };
 
-const CommentSidebar = ({
-  comments,
-  onReply,
-  replyingTo,
-  setReplyingTo,
-  isVisible,
-  onClose,
-  novel,
-  scrollToCommentId,
-}: {
-  comments: Comment[];
-  onReply: (commentId: string, content: string) => void;
-  replyingTo: string | null;
-  setReplyingTo: (id: string | null) => void;
-  isVisible: boolean;
-  onClose: () => void;
-  novel: Novel | null;
-  scrollToCommentId?: string | null;
-}) => {
-  const [replyContent, setReplyContent] = useState('');
-  const [submittingReply, setSubmittingReply] = useState(false);
-  const scrollContainerRef = useRef<HTMLDivElement>(null);
-  const replyFormRef = useRef<HTMLDivElement>(null);
-  const commentRefs = useRef<{ [key: string]: HTMLDivElement | null }>({});
+const formatDateTime = (dateString: string) => {
+  const date = new Date(dateString);
+  const now = new Date();
+  const diffInHours = (now.getTime() - date.getTime()) / (1000 * 60 * 60);
 
-  // Auto-scroll to reply form when it opens
-  useEffect(() => {
-    if (replyingTo && replyFormRef.current && scrollContainerRef.current) {
-      setTimeout(() => {
-        replyFormRef.current?.scrollIntoView({
-          behavior: 'smooth',
-          block: 'nearest',
-        });
-      }, 100);
-    }
-  }, [replyingTo]);
-
-  // Auto-scroll to specific comment when scrollToCommentId changes
-  useEffect(() => {
-    if (scrollToCommentId && commentRefs.current[scrollToCommentId] && scrollContainerRef.current) {
-      setTimeout(() => {
-        commentRefs.current[scrollToCommentId]?.scrollIntoView({
-          behavior: 'smooth',
-          block: 'start',
-          inline: 'nearest',
-        });
-      }, 100);
-    }
-  }, [scrollToCommentId]);
-
-  const handleReplySubmit = async (commentId: string) => {
-    if (!replyContent.trim()) return;
-
-    setSubmittingReply(true);
-    const tempReply = {
-      id: `temp-${Date.now()}`,
-      content: replyContent.trim(),
-      user: { name: 'You', email: '' },
-      createdAt: new Date().toISOString(),
-      isOptimistic: true,
+  if (diffInHours < 24) {
+    return {
+      date: 'Today',
+      time: date.toLocaleTimeString('en-US', {
+        hour: 'numeric',
+        minute: '2-digit',
+        hour12: true,
+      }),
     };
-
-    // Optimistic update
-    const originalContent = replyContent;
-    setReplyContent('');
-    setReplyingTo(null);
-
-    try {
-      await onReply(commentId, originalContent);
-    } catch (error) {
-      // Revert on error
-      setReplyContent(originalContent);
-      setReplyingTo(commentId);
-    } finally {
-      setSubmittingReply(false);
-    }
-  };
-
-  if (!isVisible) return null;
-
-  return (
-    <div
-      className="fixed right-0 z-30 flex w-96 flex-col border-l border-gray-200 bg-gradient-to-b from-white to-gray-50 shadow-2xl"
-      style={{
-        top: '152px',
-        height: 'calc(100vh - 152px)',
-        backdropFilter: 'blur(10px)',
-      }}
-    >
-      {/* Header with close button - Fixed at top */}
-      <div className="flex-shrink-0 bg-gradient-to-r from-purple-600 to-purple-700 p-4 text-white shadow-lg">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-2">
-            <MessageCircle className="h-5 w-5" />
-            <h3 className="text-lg font-semibold">Comments</h3>
-            <span className="rounded-full bg-white/20 px-2 py-1 text-xs">{comments.length}</span>
-          </div>
-          <button
-            onClick={onClose}
-            className="rounded-lg p-1 transition-colors duration-200 hover:bg-white/20"
-          >
-            <X className="h-5 w-5" />
-          </button>
-        </div>
-      </div>
-
-      {/* Comments content - Scrollable area */}
-      <div ref={scrollContainerRef} className="flex-1 overflow-y-auto">
-        <div className="p-6 pb-20">
-          {comments.length === 0 ? (
-            <div className="py-12 text-center">
-              <MessageCircle className="mx-auto mb-4 h-12 w-12 text-gray-300" />
-              <p className="text-sm text-gray-500">No comments yet.</p>
-              <p className="mt-1 text-xs text-gray-400">Select text to add the first comment!</p>
-            </div>
-          ) : (
-            <div className="space-y-6">
-              {comments.map((comment, index) => (
-                <div
-                  key={comment.id}
-                  className="group"
-                  ref={(el) => {
-                    commentRefs.current[comment.id] = el;
-                  }}
-                >
-                  <div className="overflow-hidden rounded-xl border border-gray-100 bg-white shadow-sm transition-all duration-200 hover:shadow-md">
-                    {/* Highlighted text reference */}
-                    <div className="border-b border-purple-100 bg-white px-4 py-3">
-                      <p className="mb-1 text-xs font-medium text-purple-700">Referenced text:</p>
-                      <div className="text-sm leading-relaxed italic">
-                        <span
-                          className="highlighted-comment-text"
-                          style={{
-                            backgroundColor: 'rgb(237 233 254)',
-                            color: 'rgb(168 85 247)',
-                            padding: '2px 4px',
-                            borderRadius: '4px',
-                          }}
-                        >
-                          "{comment.highlightedText}"
-                        </span>
-                      </div>
-                    </div>
-
-                    {/* Comment content */}
-                    <div className="p-4">
-                      <p className="mb-3 leading-relaxed text-gray-800">{comment.content}</p>
-
-                      {/* Comment metadata */}
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center space-x-2">
-                          <div className="flex h-6 w-6 items-center justify-center rounded-full bg-gradient-to-br from-purple-400 to-purple-600 text-xs font-semibold text-white">
-                            {(comment.user.name || comment.user.email || 'A')[0].toUpperCase()}
-                          </div>
-                          <span className="text-sm text-gray-600">
-                            {comment.user.name || comment.user.email}
-                            {comment.isAuthorComment && (
-                              <span className="ml-2 inline-flex items-center rounded-full bg-purple-100 px-2 py-0.5 text-xs font-medium text-purple-800">
-                                Author
-                              </span>
-                            )}
-                          </span>
-                        </div>
-                        <button
-                          onClick={() => {
-                            setReplyingTo(comment.id);
-                            setReplyContent('');
-                          }}
-                          className="flex items-center space-x-1 rounded-lg px-2 py-1 text-sm text-purple-600 transition-all duration-200 hover:bg-purple-50 hover:text-purple-800"
-                          disabled={submittingReply}
-                        >
-                          <MessageCircle className="h-3 w-3" />
-                          <span>Reply</span>
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Replies */}
-                  {comment.replies.length > 0 && (
-                    <div className="mt-3 ml-6 space-y-3">
-                      {comment.replies.map((reply) => (
-                        <div
-                          key={reply.id}
-                          className={`rounded-lg border-l-4 border-purple-200 bg-gray-50 p-3 ${
-                            reply.isOptimistic ? 'animate-pulse opacity-70' : ''
-                          }`}
-                        >
-                          <p className="mb-2 text-sm text-gray-800">{reply.content}</p>
-                          <div className="flex items-center space-x-2">
-                            <div className="flex h-4 w-4 items-center justify-center rounded-full bg-gradient-to-br from-gray-400 to-gray-600 text-xs text-white">
-                              {(reply.user.name || reply.user.email || 'A')[0].toUpperCase()}
-                            </div>
-                            <span className="text-xs text-gray-500">
-                              {reply.user.name || reply.user.email}
-                              {novel && reply.user.id === novel.author.id && (
-                                <span className="ml-2 inline-flex items-center rounded-full bg-purple-100 px-2 py-0.5 text-xs font-medium text-purple-800">
-                                  Author
-                                </span>
-                              )}
-                              {reply.isOptimistic && (
-                                <span className="ml-1 text-purple-500 italic">Sending...</span>
-                              )}
-                            </span>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-
-                  {/* Reply form */}
-                  {replyingTo === comment.id && (
-                    <div
-                      ref={replyFormRef}
-                      className="mt-4 ml-6 rounded-lg border border-gray-200 bg-white p-4 shadow-sm"
-                    >
-                      <div className="space-y-3">
-                        <textarea
-                          value={replyContent}
-                          onChange={(e) => setReplyContent(e.target.value)}
-                          placeholder="Write a thoughtful reply..."
-                          className="w-full resize-none rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder-gray-500 focus:border-purple-500 focus:ring-2 focus:ring-purple-200 focus:outline-none"
-                          rows={3}
-                          style={{ color: '#111827' }}
-                          autoFocus
-                          disabled={submittingReply}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
-                              e.preventDefault();
-                              handleReplySubmit(comment.id);
-                            }
-                          }}
-                        />
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center space-x-2">
-                            <button
-                              onClick={() => {
-                                setReplyingTo(null);
-                                setReplyContent('');
-                              }}
-                              className="text-sm text-gray-500 transition-colors duration-200 hover:text-gray-700"
-                              disabled={submittingReply}
-                            >
-                              Cancel
-                            </button>
-                            <span className="text-xs text-gray-400">Cmd+Enter to send</span>
-                          </div>
-                          <button
-                            onClick={() => handleReplySubmit(comment.id)}
-                            className="flex items-center space-x-2 rounded-lg bg-purple-600 px-4 py-2 text-sm text-white transition-all duration-200 hover:bg-purple-700 disabled:cursor-not-allowed disabled:opacity-50"
-                            disabled={!replyContent.trim() || submittingReply}
-                          >
-                            {submittingReply ? (
-                              <Loader2 className="h-4 w-4 animate-spin" />
-                            ) : (
-                              <Send className="h-4 w-4" />
-                            )}
-                            <span>{submittingReply ? 'Sending...' : 'Reply'}</span>
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Divider between comments */}
-                  {index < comments.length - 1 && (
-                    <div className="my-6 border-t border-gray-200"></div>
-                  )}
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      </div>
-    </div>
-  );
+  } else {
+    return {
+      date: date.toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        year: date.getFullYear() !== now.getFullYear() ? 'numeric' : undefined,
+      }),
+      time: date.toLocaleTimeString('en-US', {
+        hour: 'numeric',
+        minute: '2-digit',
+        hour12: true,
+      }),
+    };
+  }
 };
+
+
 
 export default function NovelForComments() {
   const params = useParams();
   const novelId = params?.id as string;
   const { data: session } = useSession();
+  const account = useActiveAccount();
 
   const [novel, setNovel] = useState<Novel | null>(null);
   const [selectedChapter, setSelectedChapter] = useState<Chapter | null>(null);
@@ -535,6 +575,17 @@ export default function NovelForComments() {
   const [replyingTo, setReplyingTo] = useState<string | null>(null);
   const [scrollToCommentId, setScrollToCommentId] = useState<string | null>(null);
 
+  // Request-related state
+  const [showRequestDialog, setShowRequestDialog] = useState(false);
+  const [requestLoading, setRequestLoading] = useState(false);
+  const [tokenBalance, setTokenBalance] = useState(0);
+  const [requests, setRequests] = useState<Request[]>([]);
+  const [requestProgressStep, setRequestProgressStep] = useState<number | undefined>(undefined);
+  const [showRequestSuccess, setShowRequestSuccess] = useState(false);
+  const [showRequestSidebar, setShowRequestSidebar] = useState(false);
+  const [scrollToRequestId, setScrollToRequestId] = useState<string | null>(null);
+  const [replyingToRequest, setReplyingToRequest] = useState<string | null>(null);
+
   const contentRef = useRef<HTMLDivElement>(null);
 
   // Function to find comment by text position
@@ -542,6 +593,15 @@ export default function NovelForComments() {
     return (
       comments.find(
         (comment) => clickPosition >= comment.startOffset && clickPosition <= comment.endOffset
+      ) || null
+    );
+  };
+
+  // Function to find request by text position
+  const findRequestByPosition = (clickPosition: number): Request | null => {
+    return (
+      requests.find(
+        (request) => clickPosition >= request.startOffset && clickPosition <= request.endOffset
       ) || null
     );
   };
@@ -563,9 +623,26 @@ export default function NovelForComments() {
       try {
         const clickPosition = editor.view.posAtDOM(markElement, 0);
 
+        // Check if it's a request first (green highlighting)
+        const matchingRequest = findRequestByPosition(clickPosition);
+        if (matchingRequest) {
+          // Open requests sidebar if closed
+          if (!showRequestSidebar) {
+            setShowRequestSidebar(true);
+          }
+
+          // Set the request to scroll to
+          setScrollToRequestId(matchingRequest.id);
+
+          // Clear the scroll target after a delay
+          setTimeout(() => {
+            setScrollToRequestId(null);
+          }, 1000);
+          return;
+        }
+
         // Find the comment that corresponds to this position
         const matchingComment = findCommentByPosition(clickPosition);
-
         if (matchingComment) {
           // Open sidebar if closed
           if (!showCommentSidebar) {
@@ -583,13 +660,26 @@ export default function NovelForComments() {
       } catch (error) {
         console.error('Error getting click position:', error);
 
-        // Fallback: find comment by matching the highlighted text
+        // Fallback: find by matching the highlighted text
         const highlightedText = markElement.textContent;
         if (highlightedText) {
+          const matchingRequest = requests.find(
+            (request) => request.highlightedText === highlightedText
+          );
+          if (matchingRequest) {
+            if (!showRequestSidebar) {
+              setShowRequestSidebar(true);
+            }
+            setScrollToRequestId(matchingRequest.id);
+            setTimeout(() => {
+              setScrollToRequestId(null);
+            }, 1000);
+            return;
+          }
+
           const matchingComment = comments.find(
             (comment) => comment.highlightedText === highlightedText
           );
-
           if (matchingComment) {
             if (!showCommentSidebar) {
               setShowCommentSidebar(true);
@@ -789,7 +879,7 @@ export default function NovelForComments() {
           throw new Error('Novel not found');
         }
 
-        setNovel(foundNovel);
+        setNovel(foundNovel); // This will now include novelAddress and coinTransactionHash
 
         if (foundNovel.chapters.length > 0) {
           setSelectedChapter(foundNovel.chapters[0]);
@@ -806,16 +896,81 @@ export default function NovelForComments() {
     }
   }, [novelId]);
 
-  // Fetch chapter content and comments when selected chapter changes
+  // Fetch token balance when novel and session are available
+  useEffect(() => {
+    const fetchTokenBalance = async () => {
+      if (!novel?.coinAddress || !session?.user?.walletAddress) {
+        setTokenBalance(0);
+        return;
+      }
+
+      try {
+        // Create a public client for reading from the blockchain
+        const publicClient = createPublicClient({
+          chain: baseSepolia,
+          transport: http(process.env.NEXT_PUBLIC_RPC_URL || 'https://sepolia.base.org'),
+        });
+
+        // Call the balanceOf function directly on the ERC20 contract
+        const balance = await publicClient.readContract({
+          address: novel.coinAddress as `0x${string}`,
+          abi: [
+            {
+              name: 'balanceOf',
+              type: 'function',
+              stateMutability: 'view',
+              inputs: [{ name: 'account', type: 'address' }],
+              outputs: [{ name: '', type: 'uint256' }],
+            },
+          ],
+          functionName: 'balanceOf',
+          args: [session.user.walletAddress as `0x${string}`],
+        });
+
+        // Convert from wei to ether and set the balance
+        const formattedBalance = parseFloat(formatEther(balance));
+        setTokenBalance(formattedBalance);
+      } catch (error) {
+        console.error('Error fetching token balance:', error);
+        // Set balance to 0 if there's an error
+        setTokenBalance(0);
+      }
+    };
+
+    fetchTokenBalance();
+  }, [novel?.coinAddress, session?.user?.walletAddress]);
+
+  // Fetch requests
+  const fetchRequests = async () => {
+    if (!selectedChapter) return;
+
+    try {
+      const response = await fetch(`/api/requests?chapterId=${selectedChapter.id}`);
+      if (response.ok) {
+        const data = await response.json();
+        setRequests(data);
+      }
+    } catch (error) {
+      console.error('Error fetching requests:', error);
+    }
+  };
+
+  // Fetch requests when chapter changes
+  useEffect(() => {
+    fetchRequests();
+  }, [selectedChapter]);
+
+  // Fetch chapter content, comments, and requests when selected chapter changes
   useEffect(() => {
     const fetchChapterContent = async () => {
       if (!selectedChapter) return;
 
       setContentLoading(true);
       try {
-        const [contentResponse, commentsResponse] = await Promise.all([
+        const [contentResponse, commentsResponse, requestsResponse] = await Promise.all([
           fetch(`/api/chapters/${selectedChapter.id}/content`),
           fetch(`/api/comments?chapterId=${selectedChapter.id}`),
+          fetch(`/api/requests?chapterId=${selectedChapter.id}`),
         ]);
 
         if (!contentResponse.ok) {
@@ -834,6 +989,11 @@ export default function NovelForComments() {
         if (commentsResponse.ok) {
           const commentsData = await commentsResponse.json();
           setComments(commentsData);
+        }
+
+        if (requestsResponse.ok) {
+          const requestsData = await requestsResponse.json();
+          setRequests(requestsData);
         }
       } catch (err) {
         console.error('Error fetching chapter content:', err);
@@ -896,6 +1056,169 @@ export default function NovelForComments() {
       alert('Failed to add comment. Please try again.');
     } finally {
       setCommentLoading(false);
+    }
+  };
+
+  const handleAddRequest = async (content: string, bountyAmount: number, stakersReward: number) => {
+    if (!selection || !selectedChapter || !session?.user?.id) return;
+
+    setRequestLoading(true);
+    setRequestProgressStep(0); // Step 1: Initiating request
+    setShowRequestSuccess(false);
+    let requestId: string | null = null;
+
+    try {
+      // Create request in database first
+      const response = await fetch('/api/requests', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          content,
+          highlightedText: selection.text,
+          startOffset: selection.startOffset,
+          endOffset: selection.endOffset,
+          textLength: selection.text.length,
+          bountyAmount: bountyAmount.toString(),
+          stakersReward: stakersReward.toString(),
+          chapterId: selectedChapter.id,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to create request');
+      }
+
+      const newRequest = await response.json();
+      requestId = newRequest.id;
+
+      // Interact with smart contract
+      if (!account || !novel?.novelAddress || !novel?.coinAddress) {
+        throw new Error('Smart account, novel contract address, or coin address not available');
+      }
+
+      setRequestProgressStep(1); // Step 2: Preparing token transfer
+
+      const client = createThirdwebClient({
+        clientId: process.env.NEXT_PUBLIC_THIRDWEB_CLIENT_ID || '',
+      });
+
+      const novelContract = getContract({
+        client,
+        chain: {
+          ...thirdwebBaseSepolia,
+          rpc: process.env.NEXT_PUBLIC_RPC_URL || `https://sepolia.base.org`,
+        },
+        address: novel.novelAddress as `0x${string}`,
+      });
+
+      const tokenContract = getContract({
+        client,
+        chain: {
+          ...thirdwebBaseSepolia,
+          rpc: process.env.NEXT_PUBLIC_RPC_URL || `https://sepolia.base.org`,
+        },
+        address: novel.coinAddress as `0x${string}`,
+      });
+
+      // Convert amounts to wei
+      const bountyWei = parseEther(bountyAmount.toString());
+      const stakersWei = parseEther(stakersReward.toString());
+      const totalRequired = bountyWei + stakersWei;
+
+      // Convert request ID to bytes32 format
+      if (!requestId) {
+        throw new Error('Request ID is required for contract interaction');
+      }
+      const bytes = stringToBytes(requestId, { size: 32 });
+      const bountyId = bytesToHex(bytes) as `0x${string}`;
+
+      // Step 1: Approve tokens for the novel contract
+      const approvalTransaction = approve({
+        contract: tokenContract,
+        spender: novel.novelAddress as `0x${string}`,
+        amount: totalRequired.toString(),
+      });
+
+      console.log('Sending approval transaction...');
+      const approvalResult = await sendTransaction({
+        transaction: approvalTransaction,
+        account,
+      });
+      console.log('Approval transaction sent:', approvalResult.transactionHash);
+
+      setRequestProgressStep(2); // Step 3: Creating bounty
+
+      // Step 2: Create the request bounty
+      const bountyTransaction = prepareContractCall({
+        contract: novelContract,
+        method:
+          'function createRequestBounty(bytes32 _bountyId, uint256 _bountyAmount, uint256 _stakersReward) external',
+        params: [bountyId, bountyWei, stakersWei],
+      });
+
+      console.log('Sending bounty creation transaction...');
+      const bountyResult = await sendTransaction({
+        transaction: bountyTransaction,
+        account,
+      });
+      console.log('Bounty creation transaction sent:', bountyResult.transactionHash);
+
+      setRequestProgressStep(3); // Step 4: Bounty created
+
+      // Update request with contract details
+      const updateResponse = await fetch(`/api/requests/${requestId}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          transactionHash: bountyResult.transactionHash,
+          contractConfirmed: true,
+        }),
+      });
+
+      if (updateResponse.ok) {
+        const updatedRequest = await updateResponse.json();
+        setRequests((prev) => [...prev, updatedRequest]);
+      }
+
+      // Show success message
+      setShowRequestSuccess(true);
+
+      // Auto-close after 1.5 seconds
+      setTimeout(() => {
+        setShowRequestDialog(false);
+        setSelection(null);
+        setShowRequestSuccess(false);
+        setRequestProgressStep(undefined);
+        setShowCommentButton(false);
+        window.getSelection()?.removeAllRanges();
+      }, 1500);
+    } catch (error) {
+      console.error('Error creating request:', error);
+
+      // If we created a database entry but contract failed, delete it
+      if (requestId) {
+        try {
+          await fetch(`/api/requests/${requestId}`, {
+            method: 'DELETE',
+          });
+        } catch (deleteError) {
+          console.error('Error cleaning up failed request:', deleteError);
+        }
+      }
+
+      alert(
+        `Failed to create request: ${error instanceof Error ? error.message : 'Unknown error'}`
+      );
+    } finally {
+      setRequestLoading(false);
+      if (!showRequestSuccess) {
+        setRequestProgressStep(undefined);
+      }
     }
   };
 
@@ -971,16 +1294,84 @@ export default function NovelForComments() {
     }
   };
 
+  // Add request reply handler
+  const handleRequestReply = async (requestId: string, content: string) => {
+    if (!session) return;
+
+    // Optimistic update
+    const tempReply = {
+      id: `temp-${Date.now()}`,
+      content,
+      user: {
+        id: session.user.id,
+        name: session.user.name || session.user.email || 'You',
+        email: session.user.email || '',
+      },
+      createdAt: new Date().toISOString(),
+      isOptimistic: true,
+    };
+
+    setRequests((prev) =>
+      prev.map((request) =>
+        request.id === requestId
+          ? { ...request, replies: [...(request.replies || []), tempReply] }
+          : request
+      )
+    );
+
+    try {
+      const response = await fetch(`/api/requests/${requestId}/replies`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content }),
+      });
+
+      if (!response.ok) throw new Error('Failed to create reply');
+
+      const newReply = await response.json();
+
+      // Replace optimistic reply with real reply
+      setRequests((prevRequests) =>
+        prevRequests.map((request) =>
+          request.id === requestId
+            ? {
+                ...request,
+                replies: [
+                  ...(request.replies || []).filter((r) => !r.isOptimistic),
+                  newReply,
+                ],
+              }
+            : request
+        )
+      );
+    } catch (error) {
+      console.error('Error creating reply:', error);
+      // Remove optimistic reply on error
+      setRequests((prev) =>
+        prev.map((request) =>
+          request.id === requestId
+            ? {
+                ...request,
+                replies: (request.replies || []).filter((r) => !r.isOptimistic),
+              }
+            : request
+        )
+      );
+      throw error;
+    }
+  };
+
   const highlightCommentedText = () => {
-    if (!editor || !comments.length) return;
+    if (!editor || (!comments.length && !requests.length)) return;
 
     // Clear all existing highlights first
     editor.commands.unsetHighlight();
 
-    // Sort comments by start position to avoid conflicts
+    // Sort comments and requests by start position to avoid conflicts
     const sortedComments = [...comments].sort((a, b) => a.startOffset - b.startOffset);
+    const sortedRequests = [...requests].sort((a, b) => a.startOffset - b.startOffset);
 
-    // Apply Tiptap highlighting for each comment
+    // Apply Tiptap highlighting for each comment (purple)
     sortedComments.forEach((comment) => {
       const { startOffset, endOffset } = comment;
 
@@ -994,7 +1385,26 @@ export default function NovelForComments() {
             color: '#a855f7', // purple-500 text color only
           });
         } catch (error) {
-          console.error('Error applying highlight:', error);
+          console.error('Error applying comment highlight:', error);
+        }
+      }
+    });
+
+    // Apply Tiptap highlighting for each request (green)
+    sortedRequests.forEach((request) => {
+      const { startOffset, endOffset } = request;
+
+      // Validate positions are within document bounds
+      const docSize = editor.state.doc.content.size;
+      if (startOffset >= 1 && endOffset <= docSize && startOffset < endOffset) {
+        try {
+          // Use the exact Tiptap positions stored in the request
+          editor.commands.setTextSelection({ from: startOffset, to: endOffset });
+          editor.commands.setHighlight({
+            color: '#22c55e', // green-500 text color
+          });
+        } catch (error) {
+          console.error('Error applying request highlight:', error);
         }
       }
     });
@@ -1003,12 +1413,15 @@ export default function NovelForComments() {
     editor.commands.blur();
   };
 
-  // Apply highlighting when comments change
+  // Apply highlighting when comments or requests change
   useEffect(() => {
-    if (editor && comments.length > 0) {
+    if (editor && (comments.length > 0 || requests.length > 0)) {
       highlightCommentedText();
     }
-  }, [comments, editor]);
+  }, [comments, requests, editor]);
+
+  // Check if current user is the author
+  const isAuthor = session?.user?.id === novel?.author?.id;
 
   if (loading) {
     return (
@@ -1030,7 +1443,7 @@ export default function NovelForComments() {
     <div className="min-h-screen bg-gray-50">
       <div
         className={`container mx-auto px-4 py-8 pt-24 transition-all duration-300 ${
-          showCommentSidebar ? 'mr-96' : ''
+          showCommentSidebar || showRequestSidebar ? 'mr-96' : ''
         }`}
       >
         <div className="mx-auto max-w-4xl">
@@ -1127,18 +1540,54 @@ export default function NovelForComments() {
 
       {/* Add Comment Button */}
       {showCommentButton && session && (
-        <button
-          onClick={() => setShowCommentDialog(true)}
-          className="fixed z-30 flex items-center space-x-2 rounded-lg bg-purple-600 px-3 py-2 text-sm text-white shadow-lg hover:bg-purple-700"
+        <div
+          className="fixed z-30 flex flex-col space-y-2"
           style={{
             left: commentButtonPosition.x,
             top: commentButtonPosition.y,
           }}
         >
-          <Plus className="h-4 w-4" />
-          <span>Add Comment</span>
-        </button>
+          {/* Add Request Button (Author Only) */}
+          {isAuthor && (
+            <button
+              onClick={() => setShowRequestDialog(true)}
+              className="flex items-center space-x-2 rounded-lg bg-green-600 px-3 py-2 text-sm text-white shadow-lg hover:bg-green-700"
+            >
+              <Plus className="h-4 w-4" />
+              <span>Add Request</span>
+            </button>
+          )}
+
+          {/* Add Comment Button */}
+          <button
+            onClick={() => setShowCommentDialog(true)}
+            className="flex items-center space-x-2 rounded-lg bg-purple-600 px-3 py-2 text-sm text-white shadow-lg hover:bg-purple-700"
+          >
+            <Plus className="h-4 w-4" />
+            <span>Add Comment</span>
+          </button>
+        </div>
       )}
+
+      {/* Request Dialog */}
+      <RequestDialog
+        isOpen={showRequestDialog}
+        onClose={() => {
+          if (!requestLoading) {
+            setShowRequestDialog(false);
+            setSelection(null);
+            setRequestProgressStep(undefined);
+            setShowRequestSuccess(false);
+          }
+        }}
+        selection={selection}
+        onSubmit={handleAddRequest}
+        loading={requestLoading}
+        tokenBalance={tokenBalance}
+        coinSymbol={novel?.coinSymbol || 'TOKEN'}
+        progressStep={requestProgressStep}
+        showSuccess={showRequestSuccess}
+      />
 
       {/* Comment Dialog */}
       <CommentDialog
@@ -1154,25 +1603,39 @@ export default function NovelForComments() {
         loading={commentLoading}
       />
 
-      {/* Floating Comments Button */}
-      {!showCommentSidebar && (
-        <div className="fixed right-6 bottom-6 z-40">
-          <button
+      {/* Floating Buttons */}
+      {!showCommentSidebar && !showRequestSidebar && (
+        <div className="fixed right-6 bottom-6 z-40 flex flex-col space-y-3">
+          {/* Floating Requests Button */}
+          <RequestsButton
+            onClick={() => setShowRequestSidebar(!showRequestSidebar)}
+            requestCount={requests.length}
+            isVisible={true}
+          />
+
+          {/* Floating Comments Button */}
+          <CommentsButton
             onClick={() => setShowCommentSidebar(!showCommentSidebar)}
-            className="relative flex h-16 w-16 items-center justify-center rounded-full bg-purple-100 text-purple-500 shadow-lg transition-all duration-200 hover:scale-105 hover:bg-purple-200"
-          >
-            <MessageCircle className="h-6 w-6" />
-            {comments.length > 0 && (
-              <span className="absolute top-4 right-3 text-xs leading-none font-bold text-purple-500">
-                {comments.length > 99 ? '99+' : comments.length}
-              </span>
-            )}
-          </button>
+            commentCount={comments.length}
+            isVisible={true}
+          />
         </div>
       )}
 
+      {/* Request Sidebar */}
+      <RequestsSidebar
+        requests={requests}
+        onReply={handleRequestReply}
+        replyingTo={replyingToRequest}
+        setReplyingTo={setReplyingToRequest}
+        isVisible={showRequestSidebar}
+        onClose={() => setShowRequestSidebar(false)}
+        novel={novel}
+        scrollToRequestId={scrollToRequestId}
+      />
+
       {/* Comment Sidebar */}
-      <CommentSidebar
+      <CommentsSidebar
         comments={comments}
         onReply={handleReply}
         replyingTo={replyingTo}
@@ -1225,29 +1688,77 @@ export default function NovelForComments() {
         }
 
         .chapter-content .ProseMirror mark {
-          background-color: #f3e8ff !important;
-          color: #a855f7 !important;
           border-radius: 4px;
           padding: 2px 4px;
           margin: 0 1px;
           cursor: pointer;
           transition: all 0.3s ease;
-          box-shadow: 0 1px 3px rgba(168, 85, 247, 0.1);
-          border: 1px solid rgba(168, 85, 247, 0.2);
           display: inline !important;
         }
 
-        .chapter-content .ProseMirror mark:hover {
+        /* Purple highlighting for comments */
+        .chapter-content .ProseMirror mark[data-color='#a855f7'] {
+          background-color: #f3e8ff !important;
+          color: #a855f7 !important;
+          box-shadow: 0 1px 3px rgba(168, 85, 247, 0.1);
+          border: 1px solid rgba(168, 85, 247, 0.2);
+        }
+
+        .chapter-content .ProseMirror mark[data-color='#a855f7']:hover {
           background-color: #e9d5ff !important;
           color: #7c3aed !important;
           box-shadow: 0 2px 6px rgba(168, 85, 247, 0.2);
           transform: translateY(-1px);
         }
+
+        /* Green highlighting for requests */
+        .chapter-content .ProseMirror mark[data-color='#22c55e'] {
+          background-color: #dcfce7 !important;
+          color: #22c55e !important;
+          box-shadow: 0 1px 3px rgba(34, 197, 94, 0.1);
+          border: 1px solid rgba(34, 197, 94, 0.2);
+        }
+
+        .chapter-content .ProseMirror mark[data-color='#22c55e']:hover {
+          background-color: #bbf7d0 !important;
+          color: #16a34a !important;
+          box-shadow: 0 2px 6px rgba(34, 197, 94, 0.2);
+          transform: translateY(-1px);
+        }
+
         .highlighted-comment-text {
           background-color: rgb(243 232 255); /* purple-100 */
           color: rgb(168 85 247); /* purple-500 */
           padding: 2px 4px;
           border-radius: 4px;
+        }
+
+        .highlighted-request-text {
+          background-color: rgb(220 252 231); /* green-100 */
+          color: rgb(34 197 94); /* green-500 */
+          padding: 2px 4px;
+          border-radius: 4px;
+        }
+
+        /* Request highlighting in editor */
+        .chapter-content .ProseMirror mark[data-color='#22c55e'] {
+          background-color: #dcfce7 !important;
+          color: #22c55e !important;
+          border-radius: 4px;
+          padding: 2px 4px;
+          margin: 0 1px;
+          cursor: pointer;
+          transition: all 0.3s ease;
+          box-shadow: 0 1px 3px rgba(34, 197, 94, 0.1);
+          border: 1px solid rgba(34, 197, 94, 0.2);
+          display: inline !important;
+        }
+
+        .chapter-content .ProseMirror mark[data-color='#22c55e']:hover {
+          background-color: #bbf7d0 !important;
+          color: #16a34a !important;
+          box-shadow: 0 2px 6px rgba(34, 197, 94, 0.2);
+          transform: translateY(-1px);
         }
 
         /* Mobile responsiveness */

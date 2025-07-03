@@ -10,7 +10,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { content, highlightedText, startOffset, endOffset, chapterId, textLength } = await request.json();
+    const { content, highlightedText, startOffset, endOffset, chapterId, textLength } =
+      await request.json();
 
     // Check if user exists
     const user = await prisma.user.findUnique({

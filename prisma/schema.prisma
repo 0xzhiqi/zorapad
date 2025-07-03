@@ -51,28 +51,10 @@ model User {
   novels        Novel[]   // Add relation to novels
   comments      Comment[] // Add relation to comments
   replies       Reply[]   // Add relation to replies
+  requests      Request[] // Add relation to requests
+  requestReplies RequestReply[] // Add relation to request replies
 
   @@map("users")
-}
-
-model Novel {
-  id                      String    @id @default(auto()) @map("_id") @db.ObjectId
-  title                   String
-  coinName                String    // Name of the coin
-  coinSymbol              String    // Symbol of the coin (e.g., NOVEL)
-  seekPublicFeedback      Boolean   @default(false)
-  published               Boolean   @default(false)
-  coinAddress             String?   // Address of the deployed coin contract
-  coinTransactionHash     String?   // Transaction hash of coin creation
-  owners                  String?   // Wallet address of the coin owners
-  payoutRecipient         String?   // Wallet address for payouts
-  authorId                String    @db.ObjectId
-  author                  User      @relation(fields: [authorId], references: [id], onDelete: Cascade)
-  chapters                Chapter[] // Add relation to chapters
-  createdAt               DateTime  @default(now())
-  updatedAt               DateTime  @updatedAt
-
-  @@map("novels")
 }
 
 model Chapter {
@@ -86,11 +68,33 @@ model Chapter {
   novelId         String    @db.ObjectId
   novel           Novel     @relation(fields: [novelId], references: [id], onDelete: Cascade)
   comments        Comment[] // Add relation to comments
+  requests        Request[] // Add relation to requests
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
 
   @@unique([novelId, order]) // Ensure unique order within each novel
   @@map("chapters")
+}
+
+model Novel {
+  id                      String    @id @default(auto()) @map("_id") @db.ObjectId
+  title                   String
+  coinName                String    // Name of the coin
+  coinSymbol              String    // Symbol of the coin (e.g., NOVEL)
+  seekPublicFeedback      Boolean   @default(false)
+  published               Boolean   @default(false)
+  coinAddress             String?   // Address of the deployed coin contract
+  novelAddress            String?   // Address of the deployed novel contract
+  coinTransactionHash     String?   // Transaction hash of coin creation
+  owners                  String?   // Wallet address of the coin owners
+  payoutRecipient         String?   // Wallet address for payouts
+  authorId                String    @db.ObjectId
+  author                  User      @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  chapters                Chapter[] // Add relation to chapters
+  createdAt               DateTime  @default(now())
+  updatedAt               DateTime  @updatedAt
+
+  @@map("novels")
 }
 
 model Comment {
@@ -135,4 +139,42 @@ model VerificationToken {
 
   @@unique([identifier, token])
   @@map("verification_tokens")
+}
+
+model Request {
+  id                String   @id @default(auto()) @map("_id") @db.ObjectId
+  content           String   // The request text
+  highlightedText   String   // The exact text that was highlighted (for reference)
+  startOffset       Int      // Start character position in the chapter content
+  endOffset         Int      // End character position in the chapter content
+  textLength        Int      // Length of highlighted text (for validation)
+  bountyAmount      String   // Amount for the bounty reward (as string to handle big numbers)
+  stakersReward     String   // Amount for stakers reward (as string to handle big numbers)
+  contractBountyId  String?  // The bounty ID used in the smart contract
+  transactionHash   String?  // Transaction hash of the contract interaction
+  contractConfirmed Boolean  @default(false) // Whether the contract interaction was successful
+  chapterId         String   @db.ObjectId
+  chapter           Chapter  @relation(fields: [chapterId], references: [id], onDelete: Cascade)
+  userId            String   @db.ObjectId
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  replies           RequestReply[] // Replies to this request
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@unique([chapterId, startOffset, endOffset]) // Prevent duplicate requests on same position
+  @@index([chapterId, startOffset]) // Index for efficient position-based queries
+  @@map("requests")
+}
+
+model RequestReply {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  content   String   // The reply text
+  requestId String   @db.ObjectId
+  request   Request  @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  userId    String   @db.ObjectId
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("request_replies")
 }
