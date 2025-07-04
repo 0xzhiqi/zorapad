@@ -16,8 +16,19 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
         upvotes: 0,
         stakeCount: 0,
         totalStaked: '0',
+        isAwarded: false,
       });
     }
+
+    // Get comment with award information
+    const comment = await prisma.comment.findUnique({
+      where: { id: commentId },
+      select: {
+        bountyAmount: true,
+        stakersReward: true,
+        awardTransactionHash: true,
+      },
+    });
 
     // Get upvote count, stake count, and stake stats
     const [upvoteCount, stakeCount, stakes] = await Promise.all([
@@ -40,10 +51,16 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
     // Total upvotes = regular upvotes + stake upvotes
     const totalUpvotes = upvoteCount + stakeCount;
 
+    // Check if comment is awarded
+    const isAwarded = !!(comment?.awardTransactionHash);
+
     return NextResponse.json({
-      upvotes: totalUpvotes,
+      upvotes: upvoteCount,
       stakeCount: stakeCount,
       totalStaked: totalStaked.toString(),
+      bountyAmount: comment?.bountyAmount ? parseFloat(comment.bountyAmount) : undefined,
+      stakersReward: comment?.stakersReward ? parseFloat(comment.stakersReward) : undefined,
+      isAwarded,
     });
   } catch (error) {
     console.error('Error fetching comment stats:', error);
