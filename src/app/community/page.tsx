@@ -39,7 +39,7 @@ const formatNumber = (num: string | number) => {
   return value.toString();
 };
 
-export default function NovelsInProgress() {
+export default function CommunityPage() {
   const [novels, setNovels] = useState<Novel[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -86,9 +86,9 @@ export default function NovelsInProgress() {
         <div className="mx-auto max-w-6xl">
           {/* Page Header */}
           <div className="mb-6 rounded-lg bg-white p-6 shadow-lg">
-            <h1 className="text-2xl font-bold text-gray-900">Novels in Progress</h1>
-            <p className="text-gray-600">
-              Discover novels seeking public feedback from the community
+            <h1 className="text-2xl font-bold text-purple-500">Community's Novels</h1>
+            <p className="mt-2 text-gray-500">
+              Discover novels in progress seeking public feedback from the community
             </p>
           </div>
 
@@ -134,7 +134,7 @@ export default function NovelsInProgress() {
                       >
                         <td className="px-6 py-4 whitespace-nowrap">
                           <Link
-                            href={`/novels-in-progress/${novel.id}`}
+                            href={`/community/${novel.id}`}
                             className="font-medium text-purple-600 transition-colors duration-150 hover:text-purple-800"
                           >
                             {novel.title}
