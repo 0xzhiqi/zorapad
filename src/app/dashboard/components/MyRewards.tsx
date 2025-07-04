@@ -86,6 +86,22 @@ interface StakingReward {
   };
 }
 
+interface CommentStakingReward {
+  id: string;
+  stakeAmount: string;
+  stakersReward: string;
+  claimed: boolean;
+  claimTransactionHash?: string;
+  itemId: string;
+  itemType: 'comment' | 'reply';
+  novel: {
+    title: string;
+    coinName: string;
+    coinSymbol: string;
+    novelAddress?: string;
+  };
+}
+
 const MyRewards = () => {
   const { data: session } = useSession();
   const account = useActiveAccount();
@@ -93,11 +109,13 @@ const MyRewards = () => {
   const [commentBounties, setCommentBounties] = useState<CommentBounty[]>([]);
   const [replyBounties, setReplyBounties] = useState<ReplyBounty[]>([]);
   const [stakingRewards, setStakingRewards] = useState<StakingReward[]>([]);
+  const [commentStakingRewards, setCommentStakingRewards] = useState<CommentStakingReward[]>([]);
   const [loading, setLoading] = useState(true);
   const [claimingBounty, setClaimingBounty] = useState<string | null>(null);
   const [claimingComment, setClaimingComment] = useState<string | null>(null);
   const [claimingReply, setClaimingReply] = useState<string | null>(null);
   const [claimingStake, setClaimingStake] = useState<string | null>(null);
+  const [claimingCommentStake, setClaimingCommentStake] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -138,6 +156,13 @@ const MyRewards = () => {
         if (stakingResponse.ok) {
           const stakes = await stakingResponse.json();
           setStakingRewards(stakes);
+        }
+
+        // Fetch comment bounty staking rewards
+        const commentStakingResponse = await fetch(`/api/rewards/comment-staking?userId=${session.user.id}`);
+        if (commentStakingResponse.ok) {
+          const commentStakes = await commentStakingResponse.json();
+          setCommentStakingRewards(commentStakes);
         }
       } catch (err) {
         setError('Failed to load rewards');
@@ -379,6 +404,64 @@ const MyRewards = () => {
     }
   };
 
+  const claimCommentStakingReward = async (
+    stakeId: string,
+    itemId: string,
+    novelAddress: string
+  ) => {
+    if (!account) {
+      alert('Please connect your wallet');
+      return;
+    }
+
+    setClaimingCommentStake(stakeId);
+    try {
+      const commentIdBytes32 = keccak256(stringToBytes(itemId, { size: 32 }));
+      const contract = getContract({
+        client,
+        chain: baseSepoliaChain,
+        address: novelAddress,
+      });
+
+      const transaction = prepareContractCall({
+        contract,
+        method: 'function claimStakeOnCommentBounty(bytes32 _commentId)',
+        params: [commentIdBytes32],
+      });
+
+      const result = await sendTransaction({
+        transaction,
+        account,
+      });
+
+      // Update the database to mark stake as claimed
+      const updateResponse = await fetch('/api/rewards/claim-comment-stake', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          stakeId,
+          transactionHash: result.transactionHash,
+        }),
+      });
+
+      if (updateResponse.ok) {
+        // Update local state
+        setCommentStakingRewards((prev) =>
+          prev.map((stake) => (stake.id === stakeId ? { ...stake, claimed: true } : stake))
+        );
+      } else {
+        throw new Error('Failed to update claim status');
+      }
+    } catch (err) {
+      console.error('Error claiming comment staking reward:', err);
+      alert('Failed to claim comment staking reward');
+    } finally {
+      setClaimingCommentStake(null);
+    }
+  };
+
   const ClaimButton = ({
     onClick,
     loading,
@@ -392,7 +475,7 @@ const MyRewards = () => {
       <button
         onClick={onClick}
         disabled={disabled || loading}
-        className="group relative flex w-28 items-center justify-center space-x-1 overflow-hidden rounded-lg bg-gradient-to-br from-purple-400 to-purple-600 px-3 py-1 text-sm font-semibold text-white shadow-lg transition-all duration-300 hover:scale-105 hover:from-purple-500 hover:to-purple-700 hover:shadow-xl disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:scale-100 disabled:hover:shadow-lg"
+        className="group relative flex w-28 items-center justify-center space-x-1 overflow-hidden rounded-lg bg-gradient-to-br from-purple-400 to-purple-600 px-3 py-2 text-sm font-semibold text-white shadow-lg transition-all duration-300 hover:scale-105 hover:from-purple-500 hover:to-purple-700 hover:shadow-xl disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:scale-100 disabled:hover:shadow-lg"
       >
         {/* Shimmer effect */}
         <div className="group-hover:animate-shimmer absolute inset-0 -top-px bg-gradient-to-r from-transparent via-white/20 to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
@@ -720,14 +803,93 @@ const MyRewards = () => {
           )}
         </div>
 
-        {/* Placeholder sections for future implementation */}
-        <div className="mb-4">
+        {/* Comment Bounty Staking Subsection */}
+        <div className="mb-6">
           <h4 className="text-md mb-3 font-medium text-purple-600">2. Comment Bounty Staking</h4>
-          <div className="rounded-lg border border-gray-200 bg-gray-50 p-4 text-center">
-            <p className="text-sm text-gray-500">Coming soon</p>
-          </div>
+
+          {commentStakingRewards.length === 0 ? (
+            <div className="rounded-lg border border-gray-200 bg-gray-50 p-4 text-center">
+              <p className="text-sm text-gray-500">No comment bounty staking rewards available</p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <div className="overflow-hidden rounded-2xl border border-purple-100 bg-white/50 shadow-sm">
+                {/* Desktop Table for Comment Bounty Staking */}
+                <div className="hidden md:block">
+                  <table className="w-full table-auto">
+                    <thead>
+                      <tr className="border-b border-purple-100 bg-gradient-to-r from-purple-50 to-pink-50">
+                        <th className="px-6 py-4 text-left text-sm font-semibold text-purple-700">
+                          Story Title
+                        </th>
+                        <th className="px-6 py-4 text-left text-sm font-semibold text-purple-700">
+                          Stake Amount
+                        </th>
+                        <th className="px-6 py-4 text-left text-sm font-semibold text-purple-700">
+                          Staking Rewards
+                        </th>
+                        <th className="px-6 py-4 text-center text-sm font-semibold text-purple-700">
+                          Action
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {commentStakingRewards.map((stake, index) => (
+                        <tr
+                          key={stake.id}
+                          className={`border-b border-purple-50 ${
+                            index % 2 === 0 ? 'bg-white/30' : 'bg-purple-50/30'
+                          } transition-colors duration-200 hover:bg-purple-50/50`}
+                        >
+                          <td className="px-6 py-5 font-medium text-gray-800">
+                            {stake.novel.title}
+                          </td>
+                          <td className="px-6 py-5">
+                            <span className="font-semibold text-purple-600">
+                              {formatAmount(stake.stakeAmount)}
+                            </span>
+                            <span className="ml-2 text-purple-600">
+                              {stake.novel.coinSymbol}
+                            </span>
+                          </td>
+                          <td className="px-6 py-5">
+                            <span className="font-semibold text-green-600">
+                              {formatAmount(stake.stakersReward)}
+                            </span>
+                            <span className="ml-2 text-green-600">
+                              {stake.novel.coinSymbol}
+                            </span>
+                          </td>
+                          <td className="px-6 py-5">
+                            <div className="flex justify-center">
+                              {stake.claimed ? (
+                                <ClaimedLabel />
+                              ) : (
+                                <ClaimButton
+                                  onClick={() =>
+                                    claimCommentStakingReward(
+                                      stake.id,
+                                      stake.itemId,
+                                      stake.novel.novelAddress!
+                                    )
+                                  }
+                                  loading={claimingCommentStake === stake.id}
+                                  disabled={!stake.novel.novelAddress}
+                                />
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
 
+        {/* Novel Revenue Staking Subsection */}
         <div>
           <h4 className="text-md mb-3 font-medium text-purple-600">3. Novel Revenue Staking</h4>
           <div className="rounded-lg border border-gray-200 bg-gray-50 p-4 text-center">

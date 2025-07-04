@@ -263,6 +263,7 @@ model CommentStake {
   stakeAmount       String   // Amount staked (as string to handle big numbers)
   claimed           Boolean  @default(false) // Whether the stake has been claimed
   transactionHash   String?  // Transaction hash of the staking transaction
+  claimTransactionHash String?
   contractConfirmed Boolean  @default(false) // Whether the contract interaction was successful
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
