@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 
-import { Check, Loader2, Plus, X } from 'lucide-react';
+import { BookOpenText, Check, Loader2, Plus, X } from 'lucide-react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 
@@ -100,7 +100,10 @@ const MyNovels = () => {
     return (
       <div className="mb-6 rounded-lg bg-white p-6 shadow-lg">
         <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-xl font-semibold text-gray-900">My Novels</h2>
+          <div className="mb-4 flex items-center space-x-2">
+            <BookOpenText className="h-6 w-6 text-purple-600" />
+            <h2 className="text-xl font-semibold text-gray-900">My Novels</h2>
+          </div>
           <button
             onClick={() => router.push('./launch-new-novel')}
             className="flex items-center space-x-2 rounded-lg border-2 border-purple-200 bg-purple-100 px-4 py-2 font-semibold text-purple-600 backdrop-blur-sm transition-all duration-300 hover:scale-105 hover:bg-purple-200"
@@ -251,25 +254,25 @@ const MyNovels = () => {
                 </div>
 
                 <div className="mb-4 space-y-3">
-                  <div className="grid grid-cols-3 gap-2 items-center">
+                  <div className="grid grid-cols-3 items-center gap-2">
                     <div className="text-sm text-gray-600">Public Feedback:</div>
                     <div className="flex justify-start">
-                      <div className="w-12 flex justify-center">
+                      <div className="flex w-12 justify-center">
                         <BooleanIndicator value={novel.seekPublicFeedback} />
                       </div>
                     </div>
                     <div></div>
                   </div>
-                  <div className="grid grid-cols-3 gap-2 items-center">
+                  <div className="grid grid-cols-3 items-center gap-2">
                     <div className="text-sm text-gray-600">Published:</div>
                     <div className="flex justify-start">
-                      <div className="w-12 flex justify-center">
+                      <div className="flex w-12 justify-center">
                         <BooleanIndicator value={novel.published} />
                       </div>
                     </div>
                     <div></div>
                   </div>
-                  <div className="grid grid-cols-3 gap-2 items-center">
+                  <div className="grid grid-cols-3 items-center gap-2">
                     <div className="text-sm text-gray-600">Coin:</div>
                     <div className="flex justify-start">
                       <span className="inline-block rounded-full bg-purple-100 px-2 py-1 text-xs font-medium text-purple-800">

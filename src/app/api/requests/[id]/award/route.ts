@@ -13,6 +13,16 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
     const { winningReplyId, winnerId, awardTransactionHash } = await request.json();
     const { id: requestId } = await params;
 
+    // Get the winner's wallet address
+    const winner = await prisma.user.findUnique({
+      where: { id: winnerId },
+      select: { walletAddress: true },
+    });
+
+    if (!winner?.walletAddress) {
+      return NextResponse.json({ error: 'Winner wallet address not found' }, { status: 400 });
+    }
+
     // Verify the user is the author of the novel
     const requestData = await prisma.request.findUnique({
       where: { id: requestId },
@@ -41,7 +51,10 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
       },
     });
 
-    return NextResponse.json(updatedRequest);
+    return NextResponse.json({
+      ...updatedRequest,
+      winnerWalletAddress: winner.walletAddress,
+    });
   } catch (error) {
     console.error('Award request error:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });

@@ -158,6 +158,7 @@ model Request {
   contractConfirmed Boolean  @default(false) // Whether the contract interaction was successful
   // Add award tracking fields
   isAwarded         Boolean  @default(false) // Whether this request has been awarded
+  claimed           Boolean  @default(false) // Whether the bounty has been claimed
   winnerId          String?  @db.ObjectId // The user ID of the winner
   winner            User?    @relation("RequestWinner", fields: [winnerId], references: [id])
   winningReplyId    String?  @db.ObjectId // The ID of the winning reply
@@ -210,6 +211,7 @@ model ReplyStake {
   userId            String      @db.ObjectId
   user              User        @relation(fields: [userId], references: [id], onDelete: Cascade)
   stakeAmount       String      // Amount staked (as string to handle big numbers)
+  claimed           Boolean     @default(false) // Whether the stake has been claimed
   transactionHash   String?     // Transaction hash of the staking transaction
   contractConfirmed Boolean     @default(false) // Whether the contract interaction was successful
   submissionId      String?     // The submission ID used in the smart contract
