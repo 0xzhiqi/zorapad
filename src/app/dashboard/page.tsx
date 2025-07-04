@@ -6,8 +6,8 @@ import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 
 import MyNovels from './components/MyNovels';
+import MyRewards from './components/MyRewards';
 import ProfileHeader from './components/ProfileHeader';
-import Rewards from './components/Rewards';
 
 const DashboardPage = () => {
   const { data: session, status } = useSession();
@@ -41,7 +41,7 @@ const DashboardPage = () => {
       <div className="container mx-auto px-4 py-8 pt-24">
         <div className="mx-auto max-w-4xl">
           <ProfileHeader user={user} />
-          <Rewards />
+          <MyRewards />
           <MyNovels />
         </div>
       </div>

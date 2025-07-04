@@ -25,6 +25,8 @@ export async function GET(request: NextRequest) {
           include: {
             novel: {
               select: {
+                title: true,           // Add this line
+                coinSymbol: true,      // Add this line
                 coinAddress: true,
               },
             },
@@ -55,8 +57,10 @@ export async function GET(request: NextRequest) {
                   include: {
                     novel: {
                       select: {
+                        title: true,           // Add this line
+                        coinSymbol: true,      // Add this line
                         coinAddress: true,
-                        novelAddress: true, // Add this line
+                        novelAddress: true,
                       },
                     },
                   },

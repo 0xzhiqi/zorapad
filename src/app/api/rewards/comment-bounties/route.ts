@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server';
-
 import { prisma } from '@/lib/prisma';
 
 export async function GET(request: NextRequest) {
@@ -11,9 +10,15 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'User ID is required' }, { status: 400 });
     }
 
-    const requestBounties = await prisma.request.findMany({
+    const commentBounties = await prisma.comment.findMany({
       where: {
-        winnerId: userId,
+        userId: userId,
+        awardTransactionHash: {
+          not: null,
+        },
+        bountyAmount: {
+          not: null,
+        },
       },
       include: {
         chapter: {
@@ -22,21 +27,17 @@ export async function GET(request: NextRequest) {
               select: {
                 title: true,           // Add this line
                 coinSymbol: true,      // Add this line
-                coinAddress: true,
                 novelAddress: true,
               },
             },
           },
         },
       },
-      orderBy: {
-        createdAt: 'desc',
-      },
     });
 
-    return NextResponse.json(requestBounties);
+    return NextResponse.json(commentBounties);
   } catch (error) {
-    console.error('Error fetching request bounties:', error);
-    return NextResponse.json({ error: 'Failed to fetch request bounties' }, { status: 500 });
+    console.error('Error fetching comment bounties:', error);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

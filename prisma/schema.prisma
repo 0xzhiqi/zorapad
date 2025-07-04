@@ -80,6 +80,7 @@ model Comment {
   bountyAmount      String?   // Amount for the bounty reward (as string to handle big numbers)
   stakersReward     String?   // Amount for stakers reward (as string to handle big numbers)
   awardTransactionHash String? // Transaction hash of the award transaction
+  claimed Boolean?
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
@@ -98,6 +99,7 @@ model Reply {
   bountyAmount      String?   // Amount for the bounty reward (as string to handle big numbers)
   stakersReward     String?   // Amount for stakers reward (as string to handle big numbers)
   awardTransactionHash String? // Transaction hash of the award transaction
+  claimed   Boolean? // Add this field
   upvotes   CommentUpvote[] // Add relation to upvotes
   stakes    CommentStake[]  // Add relation to stakes
   createdAt DateTime @default(now())
