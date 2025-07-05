@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 
-import { BookOpenText, Check, Loader2, Plus, X } from 'lucide-react';
+import { BookOpen, BookOpenText, Check, Loader2, Plus, X } from 'lucide-react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 
@@ -99,14 +99,14 @@ const MyNovels = () => {
   if (loading) {
     return (
       <div className="mb-6 rounded-lg bg-white p-6 shadow-lg">
-        <div className="mb-4 flex items-center justify-between">
-          <div className="mb-4 flex items-center space-x-2">
+        <div className="mb-4 flex items-end justify-between">
+          <div className="flex items-center space-x-2">
             <BookOpenText className="h-6 w-6 text-purple-600" />
             <h2 className="text-xl font-semibold text-gray-900">My Novels</h2>
           </div>
           <button
             onClick={() => router.push('./launch-new-novel')}
-            className="flex items-center space-x-2 rounded-lg border-2 border-purple-200 bg-purple-100 px-4 py-2 font-semibold text-purple-600 backdrop-blur-sm transition-all duration-300 hover:scale-105 hover:bg-purple-200"
+            className="flex items-center space-x-2 rounded-lg border-2 border-purple-200 bg-purple-100 px-3 py-1 font-semibold text-purple-600 backdrop-blur-sm transition-all duration-300 hover:scale-105 hover:bg-purple-200"
           >
             <Plus className="h-5 w-5" />
             <span>Launch Novel</span>
@@ -127,11 +127,14 @@ const MyNovels = () => {
   if (error) {
     return (
       <div className="mb-6 rounded-lg bg-white p-6 shadow-lg">
-        <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-xl font-semibold text-gray-900">My Novels</h2>
+        <div className="mb-4 flex items-end justify-between">
+          <div className="flex items-center space-x-2">
+            <BookOpen className="h-6 w-6 text-purple-600" />
+            <h2 className="text-xl font-semibold text-gray-900">My Novels</h2>
+          </div>
           <button
             onClick={() => router.push('./launch-new-novel')}
-            className="flex items-center space-x-2 rounded-lg border-2 border-purple-200 bg-purple-100 px-4 py-2 font-semibold text-purple-600 backdrop-blur-sm transition-all duration-300 hover:scale-105 hover:bg-purple-200"
+            className="flex items-center space-x-2 rounded-lg border-2 border-purple-200 bg-purple-100 px-3 py-1 font-semibold text-purple-600 backdrop-blur-sm transition-all duration-300 hover:scale-105 hover:bg-purple-200"
           >
             <Plus className="h-5 w-5" />
             <span>Launch Novel</span>
@@ -148,11 +151,14 @@ const MyNovels = () => {
 
   return (
     <div className="mb-6 rounded-lg bg-white p-6 shadow-lg">
-      <div className="mb-4 flex items-center justify-between">
-        <h2 className="text-xl font-semibold text-gray-900">My Novels</h2>
+      <div className="mb-4 flex items-end justify-between">
+        <div className="flex items-center space-x-2">
+          <BookOpenText className="h-6 w-6 text-purple-600" />
+          <h2 className="text-xl font-semibold text-gray-900">My Novels</h2>
+        </div>
         <button
           onClick={() => router.push('./launch-new-novel')}
-          className="flex items-center space-x-2 rounded-lg border-2 border-purple-200 bg-purple-100 px-4 py-2 font-semibold text-purple-600 backdrop-blur-sm transition-all duration-300 hover:scale-105 hover:bg-purple-200"
+          className="flex items-center space-x-2 rounded-lg border-2 border-purple-200 bg-purple-100 px-3 py-1 font-semibold text-purple-600 backdrop-blur-sm transition-all duration-300 hover:scale-105 hover:bg-purple-200"
         >
           <Plus className="h-5 w-5" />
           <span>Launch Novel</span>
