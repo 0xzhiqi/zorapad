@@ -70,7 +70,7 @@ interface ReplyBounty {
 interface StakingReward {
   id: string;
   stakeAmount: string;
-  stakersReward: string; // Add this line
+  stakersReward: string;
   claimed: boolean;
   replyId: string;
   request: {
@@ -648,7 +648,7 @@ const MyRewards = () => {
 
         {/* Request Bounties Subsection */}
         <div className="mb-6">
-          <h4 className="text-md mb-3 font-medium text-purple-600">1. Request Bounties</h4>
+          <h4 className="text-md mb-3 ml-2 font-medium text-purple-600">1. Request Bounties</h4>
 
           {requestBounties.length === 0 ? (
             <div className="rounded-lg border border-gray-200 bg-gray-50 p-4 text-center">
@@ -656,63 +656,57 @@ const MyRewards = () => {
             </div>
           ) : (
             <div className="overflow-x-auto">
-              <div className="overflow-hidden rounded-2xl border border-purple-100 bg-white/50 shadow-sm">
-                {/* Desktop Table for Request Bounties */}
-                <div className="hidden md:block">
-                  <table className="w-full table-auto">
-                    <thead>
-                      <tr className="border-b border-purple-100 bg-gradient-to-r from-purple-50 to-pink-50">
-                        <th className="px-6 py-4 text-left text-sm font-semibold text-purple-700">
-                          Story Title
-                        </th>
-                        <th className="px-6 py-4 text-left text-sm font-semibold text-purple-700">
-                          Bounty Amount
-                        </th>
-                        <th className="px-6 py-4 text-center text-sm font-semibold text-purple-700">
-                          Action
-                        </th>
+              <div className="min-w-[600px] overflow-hidden rounded-2xl border border-purple-100 bg-white/50 shadow-sm">
+                <table className="w-full table-auto">
+                  <thead>
+                    <tr className="border-b border-purple-100 bg-gradient-to-r from-purple-50 to-pink-50">
+                      <th className="w-[250px] px-6 py-4 text-left text-sm font-semibold text-purple-700">
+                        Title
+                      </th>
+                      <th className="w-[180px] px-6 py-4 text-left text-sm font-semibold text-purple-700">
+                        Bounty Amount
+                      </th>
+                      <th className="w-[170px] px-6 py-4 text-center text-sm font-semibold text-purple-700">
+                        Action
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {requestBounties.map((bounty, index) => (
+                      <tr
+                        key={bounty.id}
+                        className={`border-b border-purple-50 ${index % 2 === 0 ? 'bg-white/30' : 'bg-purple-50/30'} transition-colors duration-200 hover:bg-purple-50/50`}
+                      >
+                        <td className="w-[250px] px-6 py-5 font-medium break-words text-gray-800">
+                          {bounty.chapter.novel.title}
+                        </td>
+                        <td className="w-[180px] px-6 py-5 whitespace-nowrap">
+                          <span className="font-semibold text-gray-800">
+                            {formatAmount(bounty.bountyAmount)}
+                          </span>
+                          <span className="ml-2 text-gray-800">
+                            {bounty.chapter.novel.coinSymbol}
+                          </span>
+                        </td>
+                        <td className="w-[170px] px-6 py-5">
+                          <div className="flex justify-center">
+                            {bounty.claimed ? (
+                              <ClaimedLabel />
+                            ) : (
+                              <ClaimButton
+                                onClick={() =>
+                                  claimRequestBounty(bounty.id, bounty.chapter.novel.novelAddress!)
+                                }
+                                loading={claimingBounty === bounty.id}
+                                disabled={!bounty.isAwarded || !bounty.chapter.novel.novelAddress}
+                              />
+                            )}
+                          </div>
+                        </td>
                       </tr>
-                    </thead>
-                    <tbody>
-                      {requestBounties.map((bounty, index) => (
-                        <tr
-                          key={bounty.id}
-                          className={`border-b border-purple-50 ${index % 2 === 0 ? 'bg-white/30' : 'bg-purple-50/30'} transition-colors duration-200 hover:bg-purple-50/50`}
-                        >
-                          <td className="px-6 py-5 font-medium text-gray-800">
-                            {bounty.chapter.novel.title}
-                          </td>
-                          <td className="px-6 py-5">
-                            <span className="font-semibold text-purple-600">
-                              {formatAmount(bounty.bountyAmount)}
-                            </span>
-                            <span className="ml-2 text-purple-600">
-                              {bounty.chapter.novel.coinSymbol}
-                            </span>
-                          </td>
-                          <td className="px-6 py-5">
-                            <div className="flex justify-center">
-                              {bounty.claimed ? (
-                                <ClaimedLabel />
-                              ) : (
-                                <ClaimButton
-                                  onClick={() =>
-                                    claimRequestBounty(
-                                      bounty.id,
-                                      bounty.chapter.novel.novelAddress!
-                                    )
-                                  }
-                                  loading={claimingBounty === bounty.id}
-                                  disabled={!bounty.isAwarded || !bounty.chapter.novel.novelAddress}
-                                />
-                              )}
-                            </div>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             </div>
           )}
@@ -720,7 +714,7 @@ const MyRewards = () => {
 
         {/* Comment Bounties Subsection */}
         <div className="mb-6">
-          <h4 className="text-md mb-3 font-medium text-purple-600">2. Comment Bounties</h4>
+          <h4 className="text-md mb-3 ml-2 font-medium text-purple-600">2. Comment Bounties</h4>
 
           {commentBounties.length === 0 && replyBounties.length === 0 ? (
             <div className="rounded-lg border border-gray-200 bg-gray-50 p-4 text-center">
@@ -728,99 +722,93 @@ const MyRewards = () => {
             </div>
           ) : (
             <div className="overflow-x-auto">
-              <div className="overflow-hidden rounded-2xl border border-purple-100 bg-white/50 shadow-sm">
-                {/* Desktop Table for Comment Bounties */}
-                <div className="hidden md:block">
-                  <table className="w-full table-auto">
-                    <thead>
-                      <tr className="border-b border-purple-100 bg-gradient-to-r from-purple-50 to-pink-50">
-                        <th className="px-6 py-4 text-left text-sm font-semibold text-purple-700">
-                          Story Title
-                        </th>
-                        <th className="px-6 py-4 text-left text-sm font-semibold text-purple-700">
-                          Bounty Amount
-                        </th>
-                        <th className="px-6 py-4 text-center text-sm font-semibold text-purple-700">
-                          Action
-                        </th>
+              <div className="min-w-[600px] overflow-hidden rounded-2xl border border-purple-100 bg-white/50 shadow-sm">
+                <table className="w-full table-auto">
+                  <thead>
+                    <tr className="border-b border-purple-100 bg-gradient-to-r from-purple-50 to-pink-50">
+                      <th className="w-[250px] px-6 py-4 text-left text-sm font-semibold text-purple-700">
+                        Title
+                      </th>
+                      <th className="w-[180px] px-6 py-4 text-left text-sm font-semibold text-purple-700">
+                        Bounty Amount
+                      </th>
+                      <th className="w-[170px] px-6 py-4 text-center text-sm font-semibold text-purple-700">
+                        Action
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {commentBounties.map((bounty, index) => (
+                      <tr
+                        key={`comment-${bounty.id}`}
+                        className={`border-b border-purple-50 ${index % 2 === 0 ? 'bg-white/30' : 'bg-purple-50/30'} transition-colors duration-200 hover:bg-purple-50/50`}
+                      >
+                        <td className="w-[250px] px-6 py-5 font-medium break-words text-gray-800">
+                          {bounty.chapter.novel.title}
+                        </td>
+                        <td className="w-[180px] px-6 py-5 whitespace-nowrap">
+                          <span className="font-semibold text-gray-800">
+                            {formatAmount(bounty.bountyAmount)}
+                          </span>
+                          <span className="ml-2 text-gray-800">
+                            {bounty.chapter.novel.coinSymbol}
+                          </span>
+                        </td>
+                        <td className="w-[170px] px-6 py-5">
+                          <div className="flex justify-center">
+                            {bounty.claimed ? (
+                              <ClaimedLabel />
+                            ) : (
+                              <ClaimButton
+                                onClick={() =>
+                                  claimCommentBounty(bounty.id, bounty.chapter.novel.novelAddress!)
+                                }
+                                loading={claimingComment === bounty.id}
+                                disabled={!bounty.chapter.novel.novelAddress}
+                              />
+                            )}
+                          </div>
+                        </td>
                       </tr>
-                    </thead>
-                    <tbody>
-                      {commentBounties.map((bounty, index) => (
-                        <tr
-                          key={`comment-${bounty.id}`}
-                          className={`border-b border-purple-50 ${index % 2 === 0 ? 'bg-white/30' : 'bg-purple-50/30'} transition-colors duration-200 hover:bg-purple-50/50`}
-                        >
-                          <td className="px-6 py-5 font-medium text-gray-800">
-                            {bounty.chapter.novel.title}
-                          </td>
-                          <td className="px-6 py-5">
-                            <span className="font-semibold text-purple-600">
-                              {formatAmount(bounty.bountyAmount)}
-                            </span>
-                            <span className="ml-2 text-purple-600">
-                              {bounty.chapter.novel.coinSymbol}
-                            </span>
-                          </td>
-                          <td className="px-6 py-5">
-                            <div className="flex justify-center">
-                              {bounty.claimed ? (
-                                <ClaimedLabel />
-                              ) : (
-                                <ClaimButton
-                                  onClick={() =>
-                                    claimCommentBounty(
-                                      bounty.id,
-                                      bounty.chapter.novel.novelAddress!
-                                    )
-                                  }
-                                  loading={claimingComment === bounty.id}
-                                  disabled={!bounty.chapter.novel.novelAddress}
-                                />
-                              )}
-                            </div>
-                          </td>
-                        </tr>
-                      ))}
-                      {replyBounties.map((bounty, index) => (
-                        <tr
-                          key={`reply-${bounty.id}`}
-                          className={`border-b border-purple-50 ${(commentBounties.length + index) % 2 === 0 ? 'bg-white/30' : 'bg-purple-50/30'} transition-colors duration-200 hover:bg-purple-50/50`}
-                        >
-                          <td className="px-6 py-5 font-medium text-gray-800">
-                            {bounty.comment.chapter.novel.title}
-                          </td>
-                          <td className="px-6 py-5">
-                            <span className="font-semibold text-purple-600">
-                              {formatAmount(bounty.bountyAmount)}
-                            </span>
-                            <span className="ml-2 text-purple-600">
-                              {bounty.comment.chapter.novel.coinSymbol}
-                            </span>
-                          </td>
-                          <td className="px-6 py-5">
-                            <div className="flex justify-center">
-                              {bounty.claimed ? (
-                                <ClaimedLabel />
-                              ) : (
-                                <ClaimButton
-                                  onClick={() =>
-                                    claimReplyBounty(
-                                      bounty.id,
-                                      bounty.comment.chapter.novel.novelAddress!
-                                    )
-                                  }
-                                  loading={claimingReply === bounty.id}
-                                  disabled={!bounty.comment.chapter.novel.novelAddress}
-                                />
-                              )}
-                            </div>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                    ))}
+                    {replyBounties.map((bounty, index) => (
+                      <tr
+                        key={`reply-${bounty.id}`}
+                        className={`border-b border-purple-50 ${(commentBounties.length + index) % 2 === 0 ? 'bg-white/30' : 'bg-purple-50/30'} transition-colors duration-200 hover:bg-purple-50/50`}
+                      >
+                        <td className="w-[250px] px-6 py-5 font-medium break-words text-gray-800">
+                          {bounty.comment.chapter.novel.title}
+                        </td>
+                        <td className="w-[180px] px-6 py-5 whitespace-nowrap">
+                          <span className="font-semibold text-gray-800">
+                            {formatAmount(bounty.bountyAmount)}
+                          </span>
+                          <span className="ml-2 text-gray-800">
+                            {bounty.comment.chapter.novel.coinSymbol}
+                          </span>
+                        </td>
+                        <td className="w-[170px] px-6 py-5">
+                          <div className="flex justify-center">
+                            {bounty.claimed ? (
+                              <ClaimedLabel />
+                            ) : (
+                              <ClaimButton
+                                onClick={() =>
+                                  claimReplyBounty(
+                                    bounty.id,
+                                    bounty.comment.chapter.novel.novelAddress!
+                                  )
+                                }
+                                loading={claimingReply === bounty.id}
+                                disabled={!bounty.comment.chapter.novel.novelAddress}
+                              />
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             </div>
           )}
@@ -836,7 +824,9 @@ const MyRewards = () => {
 
         {/* Request Bounty Staking Subsection */}
         <div className="mb-6">
-          <h4 className="text-md mb-3 font-medium text-purple-600">1. Request Bounty Staking</h4>
+          <h4 className="text-md mb-3 ml-2 font-medium text-purple-600">
+            1. Request Bounty Staking
+          </h4>
 
           {stakingRewards.length === 0 ? (
             <div className="rounded-lg border border-gray-200 bg-gray-50 p-4 text-center">
@@ -844,80 +834,77 @@ const MyRewards = () => {
             </div>
           ) : (
             <div className="overflow-x-auto">
-              <div className="overflow-hidden rounded-2xl border border-purple-100 bg-white/50 shadow-sm">
-                {/* Desktop Table for Staking Rewards */}
-                <div className="hidden md:block">
-                  <table className="w-full table-auto">
-                    <thead>
-                      <tr className="border-b border-purple-100 bg-gradient-to-r from-purple-50 to-pink-50">
-                        <th className="px-6 py-4 text-left text-sm font-semibold text-purple-700">
-                          Story Title
-                        </th>
-                        <th className="px-6 py-4 text-left text-sm font-semibold text-purple-700">
-                          Stake Amount
-                        </th>
-                        <th className="px-6 py-4 text-left text-sm font-semibold text-purple-700">
-                          Staking Rewards
-                        </th>
-                        <th className="px-6 py-4 text-center text-sm font-semibold text-purple-700">
-                          Action
-                        </th>
+              <div className="min-w-[800px] overflow-hidden rounded-2xl border border-purple-100 bg-white/50 shadow-sm">
+                <table className="w-full table-auto">
+                  <thead>
+                    <tr className="border-b border-purple-100 bg-gradient-to-r from-purple-50 to-pink-50">
+                      <th className="w-[250px] px-6 py-4 text-left text-sm font-semibold text-purple-700">
+                        Title
+                      </th>
+                      <th className="w-[150px] px-6 py-4 text-left text-sm font-semibold text-purple-700">
+                        Stake Amount
+                      </th>
+                      <th className="w-[170px] px-6 py-4 text-left text-sm font-semibold text-purple-700">
+                        Staking Rewards
+                      </th>
+                      <th className="w-[170px] px-6 py-4 text-center text-sm font-semibold text-purple-700">
+                        Action
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {stakingRewards.map((stake, index) => (
+                      <tr
+                        key={stake.id}
+                        className={`border-b border-purple-50 ${index % 2 === 0 ? 'bg-white/30' : 'bg-purple-50/30'} transition-colors duration-200 hover:bg-purple-50/50`}
+                      >
+                        <td className="w-[250px] px-6 py-5 font-medium break-words text-gray-800">
+                          {stake.request.chapter.novel.title}
+                        </td>
+                        <td className="w-[150px] px-6 py-5 whitespace-nowrap">
+                          <span className="font-semibold text-gray-800">
+                            {formatAmount(stake.stakeAmount)}
+                          </span>
+                          <span className="ml-2 text-gray-800">
+                            {stake.request.chapter.novel.coinSymbol}
+                          </span>
+                        </td>
+                        <td className="w-[170px] px-6 py-5 whitespace-nowrap">
+                          <span className="font-semibold text-gray-800">
+                            {formatAmount(stake.stakersReward)}
+                          </span>
+                          <span className="ml-2 text-gray-800">
+                            {stake.request.chapter.novel.coinSymbol}
+                          </span>
+                        </td>
+                        <td className="w-[170px] px-6 py-5">
+                          <div className="flex justify-center">
+                            {stake.claimed ? (
+                              <ClaimedLabel />
+                            ) : (
+                              <ClaimButton
+                                onClick={() =>
+                                  claimStakingReward(
+                                    stake.id,
+                                    stake.request.id,
+                                    stake.replyId,
+                                    stake.request.chapter.novel.novelAddress!
+                                  )
+                                }
+                                loading={claimingStake === stake.id}
+                                disabled={
+                                  !stake.request.isAwarded ||
+                                  stake.request.winningReplyId !== stake.replyId ||
+                                  !stake.request.chapter.novel.novelAddress
+                                }
+                              />
+                            )}
+                          </div>
+                        </td>
                       </tr>
-                    </thead>
-                    <tbody>
-                      {stakingRewards.map((stake, index) => (
-                        <tr
-                          key={stake.id}
-                          className={`border-b border-purple-50 ${index % 2 === 0 ? 'bg-white/30' : 'bg-purple-50/30'} transition-colors duration-200 hover:bg-purple-50/50`}
-                        >
-                          <td className="px-6 py-5 font-medium text-gray-800">
-                            {stake.request.chapter.novel.title}
-                          </td>
-                          <td className="px-6 py-5">
-                            <span className="font-semibold text-purple-600">
-                              {formatAmount(stake.stakeAmount)}
-                            </span>
-                            <span className="ml-2 text-purple-600">
-                              {stake.request.chapter.novel.coinSymbol}
-                            </span>
-                          </td>
-                          <td className="px-6 py-5">
-                            <span className="font-semibold text-green-600">
-                              {formatAmount(stake.stakersReward)}
-                            </span>
-                            <span className="ml-2 text-green-600">
-                              {stake.request.chapter.novel.coinSymbol}
-                            </span>
-                          </td>
-                          <td className="px-6 py-5">
-                            <div className="flex justify-center">
-                              {stake.claimed ? (
-                                <ClaimedLabel />
-                              ) : (
-                                <ClaimButton
-                                  onClick={() =>
-                                    claimStakingReward(
-                                      stake.id,
-                                      stake.request.id,
-                                      stake.replyId,
-                                      stake.request.chapter.novel.novelAddress!
-                                    )
-                                  }
-                                  loading={claimingStake === stake.id}
-                                  disabled={
-                                    !stake.request.isAwarded ||
-                                    stake.request.winningReplyId !== stake.replyId ||
-                                    !stake.request.chapter.novel.novelAddress
-                                  }
-                                />
-                              )}
-                            </div>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             </div>
           )}
@@ -925,7 +912,9 @@ const MyRewards = () => {
 
         {/* Comment Bounty Staking Subsection */}
         <div className="mb-6">
-          <h4 className="text-md mb-3 font-medium text-purple-600">2. Comment Bounty Staking</h4>
+          <h4 className="text-md mb-3 ml-2 font-medium text-purple-600">
+            2. Comment Bounty Staking
+          </h4>
 
           {commentStakingRewards.length === 0 ? (
             <div className="rounded-lg border border-gray-200 bg-gray-50 p-4 text-center">
@@ -933,73 +922,70 @@ const MyRewards = () => {
             </div>
           ) : (
             <div className="overflow-x-auto">
-              <div className="overflow-hidden rounded-2xl border border-purple-100 bg-white/50 shadow-sm">
-                {/* Desktop Table for Comment Bounty Staking */}
-                <div className="hidden md:block">
-                  <table className="w-full table-auto">
-                    <thead>
-                      <tr className="border-b border-purple-100 bg-gradient-to-r from-purple-50 to-pink-50">
-                        <th className="px-6 py-4 text-left text-sm font-semibold text-purple-700">
-                          Story Title
-                        </th>
-                        <th className="px-6 py-4 text-left text-sm font-semibold text-purple-700">
-                          Stake Amount
-                        </th>
-                        <th className="px-6 py-4 text-left text-sm font-semibold text-purple-700">
-                          Staking Rewards
-                        </th>
-                        <th className="px-6 py-4 text-center text-sm font-semibold text-purple-700">
-                          Action
-                        </th>
+              <div className="min-w-[800px] overflow-hidden rounded-2xl border border-purple-100 bg-white/50 shadow-sm">
+                <table className="w-full table-auto">
+                  <thead>
+                    <tr className="border-b border-purple-100 bg-gradient-to-r from-purple-50 to-pink-50">
+                      <th className="w-[250px] px-6 py-4 text-left text-sm font-semibold text-purple-700">
+                        Title
+                      </th>
+                      <th className="w-[150px] px-6 py-4 text-left text-sm font-semibold text-purple-700">
+                        Stake Amount
+                      </th>
+                      <th className="w-[170px] px-6 py-4 text-left text-sm font-semibold text-purple-700">
+                        Staking Rewards
+                      </th>
+                      <th className="w-[170px] px-6 py-4 text-center text-sm font-semibold text-purple-700">
+                        Action
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {commentStakingRewards.map((stake, index) => (
+                      <tr
+                        key={stake.id}
+                        className={`border-b border-purple-50 ${
+                          index % 2 === 0 ? 'bg-white/30' : 'bg-purple-50/30'
+                        } transition-colors duration-200 hover:bg-purple-50/50`}
+                      >
+                        <td className="w-[250px] px-6 py-5 font-medium break-words text-gray-800">
+                          {stake.novel.title}
+                        </td>
+                        <td className="w-[150px] px-6 py-5 whitespace-nowrap">
+                          <span className="font-semibold text-gray-800">
+                            {formatAmount(stake.stakeAmount)}
+                          </span>
+                          <span className="ml-2 text-gray-800">{stake.novel.coinSymbol}</span>
+                        </td>
+                        <td className="w-[170px] px-6 py-5 whitespace-nowrap">
+                          <span className="font-semibold text-gray-800">
+                            {formatAmount(stake.stakersReward)}
+                          </span>
+                          <span className="ml-2 text-gray-800">{stake.novel.coinSymbol}</span>
+                        </td>
+                        <td className="w-[170px] px-6 py-5">
+                          <div className="flex justify-center">
+                            {stake.claimed ? (
+                              <ClaimedLabel />
+                            ) : (
+                              <ClaimButton
+                                onClick={() =>
+                                  claimCommentStakingReward(
+                                    stake.id,
+                                    stake.itemId,
+                                    stake.novel.novelAddress!
+                                  )
+                                }
+                                loading={claimingCommentStake === stake.id}
+                                disabled={!stake.novel.novelAddress}
+                              />
+                            )}
+                          </div>
+                        </td>
                       </tr>
-                    </thead>
-                    <tbody>
-                      {commentStakingRewards.map((stake, index) => (
-                        <tr
-                          key={stake.id}
-                          className={`border-b border-purple-50 ${
-                            index % 2 === 0 ? 'bg-white/30' : 'bg-purple-50/30'
-                          } transition-colors duration-200 hover:bg-purple-50/50`}
-                        >
-                          <td className="px-6 py-5 font-medium text-gray-800">
-                            {stake.novel.title}
-                          </td>
-                          <td className="px-6 py-5">
-                            <span className="font-semibold text-purple-600">
-                              {formatAmount(stake.stakeAmount)}
-                            </span>
-                            <span className="ml-2 text-purple-600">{stake.novel.coinSymbol}</span>
-                          </td>
-                          <td className="px-6 py-5">
-                            <span className="font-semibold text-green-600">
-                              {formatAmount(stake.stakersReward)}
-                            </span>
-                            <span className="ml-2 text-green-600">{stake.novel.coinSymbol}</span>
-                          </td>
-                          <td className="px-6 py-5">
-                            <div className="flex justify-center">
-                              {stake.claimed ? (
-                                <ClaimedLabel />
-                              ) : (
-                                <ClaimButton
-                                  onClick={() =>
-                                    claimCommentStakingReward(
-                                      stake.id,
-                                      stake.itemId,
-                                      stake.novel.novelAddress!
-                                    )
-                                  }
-                                  loading={claimingCommentStake === stake.id}
-                                  disabled={!stake.novel.novelAddress}
-                                />
-                              )}
-                            </div>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             </div>
           )}
@@ -1007,7 +993,9 @@ const MyRewards = () => {
 
         {/* Novel Revenue Staking Subsection */}
         <div>
-          <h4 className="text-md mb-3 font-medium text-purple-600">3. Novel Revenue Staking</h4>
+          <h4 className="text-md mb-3 ml-2 font-medium text-purple-600">
+            3. Novel Revenue Staking
+          </h4>
 
           {stakes.length === 0 ? (
             <div className="rounded-lg border border-gray-200 bg-gray-50 p-4 text-center">
@@ -1015,65 +1003,62 @@ const MyRewards = () => {
             </div>
           ) : (
             <div className="overflow-x-auto">
-              <div className="overflow-hidden rounded-2xl border border-purple-100 bg-white/50 shadow-sm">
-                {/* Desktop Table for Novel Revenue Staking */}
-                <div className="hidden md:block">
-                  <table className="w-full table-auto">
-                    <thead>
-                      <tr className="border-b border-purple-100 bg-gradient-to-r from-purple-50 to-pink-50">
-                        <th className="px-6 py-4 text-left text-sm font-semibold text-purple-700">
-                          Story Title
-                        </th>
-                        <th className="px-6 py-4 text-left text-sm font-semibold text-purple-700">
-                          Stake Amount
-                        </th>
-                        <th className="px-6 py-4 text-left text-sm font-semibold text-purple-700">
-                          Staking Rewards
-                        </th>
-                        <th className="px-6 py-4 text-center text-sm font-semibold text-purple-700">
-                          Action
-                        </th>
+              <div className="min-w-[800px] overflow-hidden rounded-2xl border border-purple-100 bg-white/50 shadow-sm">
+                <table className="w-full table-auto">
+                  <thead>
+                    <tr className="border-b border-purple-100 bg-gradient-to-r from-purple-50 to-pink-50">
+                      <th className="w-[250px] px-6 py-4 text-left text-sm font-semibold text-purple-700">
+                        Title
+                      </th>
+                      <th className="w-[150px] px-6 py-4 text-left text-sm font-semibold text-purple-700">
+                        Stake Amount
+                      </th>
+                      <th className="w-[170px] px-6 py-4 text-left text-sm font-semibold text-purple-700">
+                        Staking Rewards
+                      </th>
+                      <th className="w-[170px] px-6 py-4 text-center text-sm font-semibold text-purple-700">
+                        Action
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {stakes.map((stake, index) => (
+                      <tr
+                        key={stake.id}
+                        className={`border-b border-purple-50 ${
+                          index % 2 === 0 ? 'bg-white/30' : 'bg-purple-50/30'
+                        } transition-colors duration-200 hover:bg-purple-50/50`}
+                      >
+                        <td className="w-[250px] px-6 py-5 font-medium break-words text-gray-800">
+                          {stake.novel.title}
+                        </td>
+                        <td className="w-[150px] px-6 py-5 whitespace-nowrap">
+                          <span className="font-semibold text-gray-800">
+                            {formatAmount(stake.amountStaked)}
+                          </span>
+                          <span className="ml-2 text-gray-800">{stake.novel.coinSymbol}</span>
+                        </td>
+                        <td className="w-[170px] px-6 py-5 whitespace-nowrap">
+                          <span className="font-semibold text-gray-800">0</span>
+                          <span className="ml-2 text-gray-800">{stake.novel.coinSymbol}</span>
+                        </td>
+                        <td className="w-[170px] px-6 py-5">
+                          <div className="flex justify-center">
+                            {stake.unstaked ? (
+                              <UnstakedLabel />
+                            ) : (
+                              <UnstakeButton
+                                onClick={() => handleUnstake(stake.id, stake.amountStaked)}
+                                loading={unstaking === stake.id}
+                                disabled={!stake.novel.novelAddress}
+                              />
+                            )}
+                          </div>
+                        </td>
                       </tr>
-                    </thead>
-                    <tbody>
-                      {stakes.map((stake, index) => (
-                        <tr
-                          key={stake.id}
-                          className={`border-b border-purple-50 ${
-                            index % 2 === 0 ? 'bg-white/30' : 'bg-purple-50/30'
-                          } transition-colors duration-200 hover:bg-purple-50/50`}
-                        >
-                          <td className="px-6 py-5 font-medium text-gray-800">
-                            {stake.novel.title}
-                          </td>
-                          <td className="px-6 py-5">
-                            <span className="font-semibold text-purple-600">
-                              {formatAmount(stake.amountStaked)}
-                            </span>
-                            <span className="ml-2 text-purple-600">{stake.novel.coinSymbol}</span>
-                          </td>
-                          <td className="px-6 py-5">
-                            <span className="font-semibold text-green-600">0</span>
-                            <span className="ml-2 text-green-600">{stake.novel.coinSymbol}</span>
-                          </td>
-                          <td className="px-6 py-5">
-                            <div className="flex justify-center">
-                              {stake.unstaked ? (
-                                <UnstakedLabel />
-                              ) : (
-                                <UnstakeButton
-                                  onClick={() => handleUnstake(stake.id, stake.amountStaked)}
-                                  loading={unstaking === stake.id}
-                                  disabled={!stake.novel.novelAddress}
-                                />
-                              )}
-                            </div>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             </div>
           )}
