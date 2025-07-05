@@ -438,7 +438,7 @@ const ChapterDropdown = ({
                 <div className="font-medium text-gray-900">{chapter.title}</div>
                 <div className="text-xs text-gray-500">
                   Chapter {chapter.order} • {chapter.wordCount} words
-                  {chapter.contentUrl ? ' • Has content' : ' • Empty'}
+                  {/* {chapter.contentUrl ? ' • Has content' : ' • Empty'} */}
                 </div>
               </button>
             ))}

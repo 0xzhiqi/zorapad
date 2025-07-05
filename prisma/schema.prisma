@@ -38,51 +38,52 @@ model Session {
 }
 
 model User {
-  id            String    @id @default(auto()) @map("_id") @db.ObjectId
-  name          String?
-  email         String?   // Remove @unique
-  emailVerified DateTime?
-  image         String?
-  walletAddress String?   @unique
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-  accounts      Account[]
-  sessions      Session[]
-  novels        Novel[]   // Add relation to novels
-  comments      Comment[] // Add relation to comments
-  replies       Reply[]   // Add relation to replies
-  requests      Request[] // Add relation to requests
+  id             String           @id @default(auto()) @map("_id") @db.ObjectId
+  name           String?
+  email          String? // Remove @unique
+  emailVerified  DateTime?
+  image          String?
+  walletAddress  String?          @unique
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+  accounts       Account[]
+  sessions       Session[]
+  novels         Novel[] // Add relation to novels
+  comments       Comment[] // Add relation to comments
+  replies        Reply[] // Add relation to replies
+  requests       Request[] // Add relation to requests
   requestReplies RequestReply[] // Add relation to request replies
-  replyUpvotes  ReplyUpvote[] // Add relation to reply upvotes
-  replyStakes   ReplyStake[]  // Add relation to reply stakes
+  replyUpvotes   ReplyUpvote[] // Add relation to reply upvotes
+  replyStakes    ReplyStake[] // Add relation to reply stakes
   commentUpvotes CommentUpvote[] // Add relation to comment upvotes
-  commentStakes CommentStake[]  // Add relation to comment stakes
-  wonRequests   Request[] @relation("RequestWinner") // Add relation to won requests
+  commentStakes  CommentStake[] // Add relation to comment stakes
+  wonRequests    Request[]        @relation("RequestWinner") // Add relation to won requests
+  revenueStakes  RevenueStaking[] // Add relation to revenue stakes
 
   @@map("users")
 }
 
 model Comment {
-  id              String   @id @default(auto()) @map("_id") @db.ObjectId
-  content         String   // The comment text
-  highlightedText String   // The exact text that was highlighted (for reference)
-  startOffset     Int      // Start character position in the chapter content
-  endOffset       Int      // End character position in the chapter content
-  textLength      Int      // Length of highlighted text (for validation)
-  isAuthorComment Boolean  @default(false) // Whether comment is by the author
-  chapterId       String   @db.ObjectId
-  chapter         Chapter  @relation(fields: [chapterId], references: [id], onDelete: Cascade)
-  userId          String   @db.ObjectId
-  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  replies         Reply[]  // Replies to this comment
-  upvotes         CommentUpvote[] // Add relation to upvotes
-  stakes          CommentStake[]  // Add relation to stakes
-  bountyAmount      String?   // Amount for the bounty reward (as string to handle big numbers)
-  stakersReward     String?   // Amount for stakers reward (as string to handle big numbers)
+  id                   String          @id @default(auto()) @map("_id") @db.ObjectId
+  content              String // The comment text
+  highlightedText      String // The exact text that was highlighted (for reference)
+  startOffset          Int // Start character position in the chapter content
+  endOffset            Int // End character position in the chapter content
+  textLength           Int // Length of highlighted text (for validation)
+  isAuthorComment      Boolean         @default(false) // Whether comment is by the author
+  chapterId            String          @db.ObjectId
+  chapter              Chapter         @relation(fields: [chapterId], references: [id], onDelete: Cascade)
+  userId               String          @db.ObjectId
+  user                 User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  replies              Reply[] // Replies to this comment
+  upvotes              CommentUpvote[] // Add relation to upvotes
+  stakes               CommentStake[] // Add relation to stakes
+  bountyAmount         String? // Amount for the bounty reward (as string to handle big numbers)
+  stakersReward        String? // Amount for stakers reward (as string to handle big numbers)
   awardTransactionHash String? // Transaction hash of the award transaction
-  claimed Boolean?
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  claimed              Boolean?
+  createdAt            DateTime        @default(now())
+  updatedAt            DateTime        @updatedAt
 
   @@unique([chapterId, startOffset, endOffset]) // Prevent duplicate comments on same position
   @@index([chapterId, startOffset]) // Index for efficient position-based queries
@@ -90,60 +91,61 @@ model Comment {
 }
 
 model Reply {
-  id        String   @id @default(auto()) @map("_id") @db.ObjectId
-  content   String   // The reply text
-  commentId String   @db.ObjectId
-  comment   Comment  @relation(fields: [commentId], references: [id], onDelete: Cascade)
-  userId    String   @db.ObjectId
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  bountyAmount      String?   // Amount for the bounty reward (as string to handle big numbers)
-  stakersReward     String?   // Amount for stakers reward (as string to handle big numbers)
+  id                   String          @id @default(auto()) @map("_id") @db.ObjectId
+  content              String // The reply text
+  commentId            String          @db.ObjectId
+  comment              Comment         @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  userId               String          @db.ObjectId
+  user                 User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  bountyAmount         String? // Amount for the bounty reward (as string to handle big numbers)
+  stakersReward        String? // Amount for stakers reward (as string to handle big numbers)
   awardTransactionHash String? // Transaction hash of the award transaction
-  claimed   Boolean? // Add this field
-  upvotes   CommentUpvote[] // Add relation to upvotes
-  stakes    CommentStake[]  // Add relation to stakes
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  claimed              Boolean? // Add this field
+  upvotes              CommentUpvote[] // Add relation to upvotes
+  stakes               CommentStake[] // Add relation to stakes
+  createdAt            DateTime        @default(now())
+  updatedAt            DateTime        @updatedAt
 
   @@map("replies")
 }
 
 model Chapter {
-  id              String    @id @default(auto()) @map("_id") @db.ObjectId
-  title           String
-  order           Int       // Chapter order within the novel
-  contentUrl      String?   // Google Cloud Storage URL for the chapter content
-  contentPath     String?   // Path in Google Cloud Storage
-  wordCount       Int       @default(0)
-  published       Boolean   @default(false)
-  novelId         String    @db.ObjectId
-  novel           Novel     @relation(fields: [novelId], references: [id], onDelete: Cascade)
-  comments        Comment[] // Add relation to comments
-  requests        Request[] // Add relation to requests
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
+  id          String    @id @default(auto()) @map("_id") @db.ObjectId
+  title       String
+  order       Int // Chapter order within the novel
+  contentUrl  String? // Google Cloud Storage URL for the chapter content
+  contentPath String? // Path in Google Cloud Storage
+  wordCount   Int       @default(0)
+  published   Boolean   @default(false)
+  novelId     String    @db.ObjectId
+  novel       Novel     @relation(fields: [novelId], references: [id], onDelete: Cascade)
+  comments    Comment[] // Add relation to comments
+  requests    Request[] // Add relation to requests
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
 
   @@unique([novelId, order]) // Ensure unique order within each novel
   @@map("chapters")
 }
 
 model Novel {
-  id                      String    @id @default(auto()) @map("_id") @db.ObjectId
-  title                   String
-  coinName                String    // Name of the coin
-  coinSymbol              String    // Symbol of the coin (e.g., NOVEL)
-  seekPublicFeedback      Boolean   @default(false)
-  published               Boolean   @default(false)
-  coinAddress             String?   // Address of the deployed coin contract
-  novelAddress            String?   // Address of the deployed novel contract
-  coinTransactionHash     String?   // Transaction hash of coin creation
-  owners                  String?   // Wallet address of the coin owners
-  payoutRecipient         String?   // Wallet address for payouts
-  authorId                String    @db.ObjectId
-  author                  User      @relation(fields: [authorId], references: [id], onDelete: Cascade)
-  chapters                Chapter[] // Add relation to chapters
-  createdAt               DateTime  @default(now())
-  updatedAt               DateTime  @updatedAt
+  id                  String           @id @default(auto()) @map("_id") @db.ObjectId
+  title               String
+  coinName            String // Name of the coin
+  coinSymbol          String // Symbol of the coin (e.g., NOVEL)
+  seekPublicFeedback  Boolean          @default(false)
+  published           Boolean          @default(false)
+  coinAddress         String? // Address of the deployed coin contract
+  novelAddress        String? // Address of the deployed novel contract
+  coinTransactionHash String? // Transaction hash of coin creation
+  owners              String? // Wallet address of the coin owners
+  payoutRecipient     String? // Wallet address for payouts
+  authorId            String           @db.ObjectId
+  author              User             @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  chapters            Chapter[] // Add relation to chapters
+  revenueStakes       RevenueStaking[] // Add relation to revenue stakes
+  createdAt           DateTime         @default(now())
+  updatedAt           DateTime         @updatedAt
 
   @@map("novels")
 }
@@ -159,32 +161,32 @@ model VerificationToken {
 }
 
 model Request {
-  id                String   @id @default(auto()) @map("_id") @db.ObjectId
-  content           String   // The request text
-  highlightedText   String   // The exact text that was highlighted (for reference)
-  startOffset       Int      // Start character position in the chapter content
-  endOffset         Int      // End character position in the chapter content
-  textLength        Int      // Length of highlighted text (for validation)
-  bountyAmount      String   // Amount for the bounty reward (as string to handle big numbers)
-  stakersReward     String   // Amount for stakers reward (as string to handle big numbers)
-  contractBountyId  String?  // The bounty ID used in the smart contract
-  transactionHash   String?  // Transaction hash of the contract interaction
-  contractConfirmed Boolean  @default(false) // Whether the contract interaction was successful
+  id                   String         @id @default(auto()) @map("_id") @db.ObjectId
+  content              String // The request text
+  highlightedText      String // The exact text that was highlighted (for reference)
+  startOffset          Int // Start character position in the chapter content
+  endOffset            Int // End character position in the chapter content
+  textLength           Int // Length of highlighted text (for validation)
+  bountyAmount         String // Amount for the bounty reward (as string to handle big numbers)
+  stakersReward        String // Amount for stakers reward (as string to handle big numbers)
+  contractBountyId     String? // The bounty ID used in the smart contract
+  transactionHash      String? // Transaction hash of the contract interaction
+  contractConfirmed    Boolean        @default(false) // Whether the contract interaction was successful
   // Add award tracking fields
-  isAwarded         Boolean  @default(false) // Whether this request has been awarded
-  claimed           Boolean  @default(false) // Whether the bounty has been claimed
-  winnerId          String?  @db.ObjectId // The user ID of the winner
-  winner            User?    @relation("RequestWinner", fields: [winnerId], references: [id])
-  winningReplyId    String?  @db.ObjectId // The ID of the winning reply
+  isAwarded            Boolean        @default(false) // Whether this request has been awarded
+  claimed              Boolean        @default(false) // Whether the bounty has been claimed
+  winnerId             String?        @db.ObjectId // The user ID of the winner
+  winner               User?          @relation("RequestWinner", fields: [winnerId], references: [id])
+  winningReplyId       String?        @db.ObjectId // The ID of the winning reply
   awardTransactionHash String? // Transaction hash of the award transaction
-  awardedAt         DateTime? // When the award was given
-  chapterId         String   @db.ObjectId
-  chapter           Chapter  @relation(fields: [chapterId], references: [id], onDelete: Cascade)
-  userId            String   @db.ObjectId
-  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  replies           RequestReply[] // Replies to this request
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
+  awardedAt            DateTime? // When the award was given
+  chapterId            String         @db.ObjectId
+  chapter              Chapter        @relation(fields: [chapterId], references: [id], onDelete: Cascade)
+  userId               String         @db.ObjectId
+  user                 User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  replies              RequestReply[] // Replies to this request
+  createdAt            DateTime       @default(now())
+  updatedAt            DateTime       @updatedAt
 
   @@unique([chapterId, startOffset, endOffset]) // Prevent duplicate requests on same position
   @@index([chapterId, startOffset]) // Index for efficient position-based queries
@@ -192,45 +194,45 @@ model Request {
 }
 
 model RequestReply {
-  id        String   @id @default(auto()) @map("_id") @db.ObjectId
-  content   String   // The reply text
-  requestId String   @db.ObjectId
-  request   Request  @relation(fields: [requestId], references: [id], onDelete: Cascade)
-  userId    String   @db.ObjectId
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id        String        @id @default(auto()) @map("_id") @db.ObjectId
+  content   String // The reply text
+  requestId String        @db.ObjectId
+  request   Request       @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  userId    String        @db.ObjectId
+  user      User          @relation(fields: [userId], references: [id], onDelete: Cascade)
   upvotes   ReplyUpvote[] // Add relation to upvotes
-  stakes    ReplyStake[]  // Add relation to stakes
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  stakes    ReplyStake[] // Add relation to stakes
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
 
   @@map("request_replies")
 }
 
 model ReplyUpvote {
-  id            String      @id @default(auto()) @map("_id") @db.ObjectId
-  replyId       String      @db.ObjectId
-  reply         RequestReply @relation(fields: [replyId], references: [id], onDelete: Cascade)
-  userId        String      @db.ObjectId
-  user          User        @relation(fields: [userId], references: [id], onDelete: Cascade)
-  createdAt     DateTime    @default(now())
+  id        String       @id @default(auto()) @map("_id") @db.ObjectId
+  replyId   String       @db.ObjectId
+  reply     RequestReply @relation(fields: [replyId], references: [id], onDelete: Cascade)
+  userId    String       @db.ObjectId
+  user      User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime     @default(now())
 
   @@unique([replyId, userId]) // Prevent duplicate upvotes from same user
   @@map("reply_upvotes")
 }
 
 model ReplyStake {
-  id                String      @id @default(auto()) @map("_id") @db.ObjectId
-  replyId           String      @db.ObjectId
+  id                String       @id @default(auto()) @map("_id") @db.ObjectId
+  replyId           String       @db.ObjectId
   reply             RequestReply @relation(fields: [replyId], references: [id], onDelete: Cascade)
-  userId            String      @db.ObjectId
-  user              User        @relation(fields: [userId], references: [id], onDelete: Cascade)
-  stakeAmount       String      // Amount staked (as string to handle big numbers)
-  claimed           Boolean     @default(false) // Whether the stake has been claimed
-  transactionHash   String?     // Transaction hash of the staking transaction
-  contractConfirmed Boolean     @default(false) // Whether the contract interaction was successful
-  submissionId      String?     // The submission ID used in the smart contract
-  createdAt         DateTime    @default(now())
-  updatedAt         DateTime    @updatedAt
+  userId            String       @db.ObjectId
+  user              User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  stakeAmount       String // Amount staked (as string to handle big numbers)
+  claimed           Boolean      @default(false) // Whether the stake has been claimed
+  transactionHash   String? // Transaction hash of the staking transaction
+  contractConfirmed Boolean      @default(false) // Whether the contract interaction was successful
+  submissionId      String? // The submission ID used in the smart contract
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
 
   @@map("reply_stakes")
 }
@@ -248,25 +250,43 @@ model CommentUpvote {
   createdAt DateTime @default(now())
 
   @@unique([commentId, userId]) // Prevent duplicate upvotes from same user on comments
-  @@unique([replyId, userId])   // Prevent duplicate upvotes from same user on replies
+  @@unique([replyId, userId]) // Prevent duplicate upvotes from same user on replies
   @@map("comment_upvotes")
 }
 
 model CommentStake {
-  id                String   @id @default(auto()) @map("_id") @db.ObjectId
-  commentId         String?  @db.ObjectId
-  comment           Comment? @relation(fields: [commentId], references: [id], onDelete: Cascade)
-  replyId           String?  @db.ObjectId
-  reply             Reply?   @relation(fields: [replyId], references: [id], onDelete: Cascade)
-  userId            String   @db.ObjectId
-  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  stakeAmount       String   // Amount staked (as string to handle big numbers)
-  claimed           Boolean  @default(false) // Whether the stake has been claimed
-  transactionHash   String?  // Transaction hash of the staking transaction
+  id                   String   @id @default(auto()) @map("_id") @db.ObjectId
+  commentId            String?  @db.ObjectId
+  comment              Comment? @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  replyId              String?  @db.ObjectId
+  reply                Reply?   @relation(fields: [replyId], references: [id], onDelete: Cascade)
+  userId               String   @db.ObjectId
+  user                 User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  stakeAmount          String // Amount staked (as string to handle big numbers)
+  claimed              Boolean  @default(false) // Whether the stake has been claimed
+  transactionHash      String? // Transaction hash of the staking transaction
   claimTransactionHash String?
-  contractConfirmed Boolean  @default(false) // Whether the contract interaction was successful
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
+  contractConfirmed    Boolean  @default(false) // Whether the contract interaction was successful
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
 
   @@map("comment_stakes")
+}
+
+model RevenueStaking {
+  id                     String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId                 String   @db.ObjectId
+  novelId                String   @db.ObjectId
+  amountStaked           String
+  stakeTransactionHash   String   @unique
+  unstakeTransactionHash String?  @unique
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
+
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  novel Novel @relation(fields: [novelId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([novelId])
+  @@map("revenue_staking")
 }
