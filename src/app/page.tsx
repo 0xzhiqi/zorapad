@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 import {
   ArrowRight,
@@ -15,17 +15,46 @@ import {
   Users,
   Zap,
 } from 'lucide-react';
+import { useSession } from 'next-auth/react';
+import { useRouter } from 'next/navigation';
 
-// Remove Navbar import - it's now in layout
+import ConnectButton from './components/LoginButton';
 
 const Homepage = () => {
   const [isVisible, setIsVisible] = useState(false);
   const [activeFeature, setActiveFeature] = useState(0);
-  // Remove mobile menu state - handled in layout
+  const { data: session } = useSession();
+  const router = useRouter();
+  const connectButtonRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     setIsVisible(true);
   }, []);
+
+  // Redirect to dashboard when user successfully logs in
+  useEffect(() => {
+    if (session) {
+      router.push('/dashboard');
+    }
+  }, [session, router]);
+
+  const handleStartWriting = () => {
+    if (session) {
+      router.push('/dashboard');
+    } else {
+      // Trigger the ConnectButton click programmatically
+      if (connectButtonRef.current) {
+        const button = connectButtonRef.current.querySelector('button');
+        if (button) {
+          button.click();
+        }
+      }
+    }
+  };
+
+  const handleExploreStories = () => {
+    router.push('/community');
+  };
 
   const features = [
     {
@@ -91,8 +120,6 @@ const Homepage = () => {
         />
       </div>
 
-      {/* Remove Navbar - it's now in layout as overlay */}
-
       {/* Hero Section - no top padding needed since navbar overlays */}
       <div className="relative z-40 mx-auto max-w-7xl px-6 pt-20 pb-32">
         <div
@@ -121,7 +148,10 @@ const Homepage = () => {
           </p>
 
           <div className="mb-16 flex flex-col items-center justify-center gap-6 sm:flex-row">
-            <button className="group relative overflow-hidden rounded-full bg-gradient-to-r from-pink-500 to-violet-500 px-12 py-5 text-xl font-bold text-white shadow-2xl shadow-pink-500/30 transition-all duration-300 hover:scale-105">
+            <button
+              onClick={handleStartWriting}
+              className="group relative overflow-hidden rounded-full bg-gradient-to-r from-pink-500 to-violet-500 px-12 py-5 text-xl font-bold text-white shadow-2xl shadow-pink-500/30 transition-all duration-300 hover:scale-105"
+            >
               <span className="relative z-10 flex items-center space-x-3">
                 <Pen className="h-6 w-6" />
                 <span>Start Writing</span>
@@ -130,7 +160,10 @@ const Homepage = () => {
               <div className="absolute inset-0 bg-gradient-to-r from-violet-500 to-pink-500 opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
             </button>
 
-            <button className="flex items-center space-x-3 rounded-full border-2 border-white/30 bg-white/10 px-12 py-5 text-xl font-semibold text-white backdrop-blur-sm transition-all duration-300 hover:scale-105 hover:bg-white/20">
+            <button
+              onClick={handleExploreStories}
+              className="flex items-center space-x-3 rounded-full border-2 border-white/30 bg-white/10 px-12 py-5 text-xl font-semibold text-white backdrop-blur-sm transition-all duration-300 hover:scale-105 hover:bg-white/20"
+            >
               <BookOpen className="h-6 w-6" />
               <span>Explore Stories</span>
             </button>
@@ -200,7 +233,10 @@ const Homepage = () => {
                 Join thousands of writers who are already crafting amazing stories and building
                 their audience on ZoraPad.
               </p>
-              <button className="group relative overflow-hidden rounded-full bg-gradient-to-r from-pink-500 to-violet-500 px-16 py-6 text-2xl font-bold text-white shadow-2xl shadow-pink-500/30 transition-all duration-300 hover:scale-105">
+              <button
+                onClick={handleStartWriting}
+                className="group relative overflow-hidden rounded-full bg-gradient-to-r from-pink-500 to-violet-500 px-16 py-6 text-2xl font-bold text-white shadow-2xl shadow-pink-500/30 transition-all duration-300 hover:scale-105"
+              >
                 <span className="relative z-10 flex items-center space-x-3">
                   <span>Get Started Free</span>
                 </span>
@@ -210,6 +246,16 @@ const Homepage = () => {
           </div>
         </div>
       </div>
+
+      {/* Hidden ConnectButton for programmatic triggering */}
+      {!session && (
+        <div
+          ref={connectButtonRef}
+          className="pointer-events-none fixed top-0 left-0 -z-10 opacity-0"
+        >
+          <ConnectButton className="[&>div>button]:opacity-0" />
+        </div>
+      )}
 
       {/* Footer */}
       <footer className="relative z-40 mt-20 border-t border-white/10 bg-black/20 py-12 backdrop-blur-sm">
