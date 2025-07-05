@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 
 import { tradeCoin } from '@zoralabs/coins-sdk';
-import { AlertTriangle, ArrowDown, ArrowUp, CheckCircle, X } from 'lucide-react';
+import { AlertTriangle, ArrowDown, ArrowUp, CheckCircle, Wallet, X } from 'lucide-react';
 import { useActiveAccount, useActiveWalletConnectionStatus } from 'thirdweb/react';
 import { Address, createPublicClient, createWalletClient, custom, http, parseEther } from 'viem';
 import { baseSepolia } from 'viem/chains';
@@ -22,8 +22,6 @@ type TradeStep = {
   status: 'pending' | 'active' | 'completed' | 'error';
 };
 
-// Remove the custom TradeParams type since we'll use what the SDK provides
-
 export default function TradingModal({ isOpen, onClose, novel }: TradingModalProps) {
   const [tradeType, setTradeType] = useState<'buy' | 'sell'>('buy');
   const [amount, setAmount] = useState('');
@@ -32,9 +30,58 @@ export default function TradingModal({ isOpen, onClose, novel }: TradingModalPro
   const [error, setError] = useState<string | null>(null);
   const [warning, setWarning] = useState<string | null>(null);
   const [estimatedOutput, setEstimatedOutput] = useState<string>('');
+  const [ethBalance, setEthBalance] = useState<string>('0');
+  const [tokenBalance, setTokenBalance] = useState<string>('0');
 
   const account = useActiveAccount();
   const connectionStatus = useActiveWalletConnectionStatus();
+
+  const erc20Abi = [
+    {
+      inputs: [{ name: '_owner', type: 'address' }],
+      name: 'balanceOf',
+      outputs: [{ name: 'balance', type: 'uint256' }],
+      stateMutability: 'view',
+      type: 'function',
+    },
+  ] as const;
+
+  useEffect(() => {
+    if (isOpen && account) {
+      const fetchBalances = async () => {
+        const publicClient = createPublicClient({
+          chain: baseSepolia,
+          transport: http(
+            process.env.NEXT_PUBLIC_BASE_SEPOLIA_RPC_URL || 'https://sepolia.base.org'
+          ),
+        });
+
+        try {
+          // Fetch ETH balance
+          const ethBal = await publicClient.getBalance({
+            address: account.address as Address,
+          });
+          setEthBalance((Number(ethBal) / 1e18).toFixed(4));
+
+          // Fetch token balance if coin address exists
+          if (novel.coinAddress) {
+            const tokenBal = await publicClient.readContract({
+              address: novel.coinAddress as Address,
+              abi: erc20Abi,
+              functionName: 'balanceOf',
+              args: [account.address as Address],
+            });
+            setTokenBalance((Number(tokenBal) / 1e18).toFixed(4));
+          }
+        } catch (error) {
+          console.error('Error fetching balances:', error);
+          setEthBalance('0');
+          setTokenBalance('0');
+        }
+      };
+      fetchBalances();
+    }
+  }, [isOpen, account, novel.coinAddress]);
 
   if (!isOpen) return null;
 
@@ -81,6 +128,19 @@ export default function TradingModal({ isOpen, onClose, novel }: TradingModalPro
     if (amountNum < 0.001) {
       throw new Error('Minimum amount is 0.001');
     }
+
+    // Balance validation
+    if (tradeType === 'buy' && amountNum > parseFloat(ethBalance)) {
+      throw new Error(
+        `Insufficient ETH balance. You have ${ethBalance} ETH but need ${amountNum} ETH`
+      );
+    }
+
+    if (tradeType === 'sell' && amountNum > parseFloat(tokenBalance)) {
+      throw new Error(
+        `Insufficient ${novel.coinSymbol} balance. You have ${tokenBalance} ${novel.coinSymbol} but need ${amountNum} ${novel.coinSymbol}`
+      );
+    }
   };
 
   const handleTrade = async () => {
@@ -105,27 +165,20 @@ export default function TradingModal({ isOpen, onClose, novel }: TradingModalPro
         throw new Error('Please connect your wallet first');
       }
 
-      // Check wallet balance before attempting trade
-      const balance = await publicClient.getBalance({
-        address: account.address as Address,
-      });
-
       const requiredAmount = parseEther(amount);
-      const balanceInEth = Number(balance) / 1e18;
       const requiredInEth = Number(requiredAmount) / 1e18;
 
-      console.log('Wallet balance:', balanceInEth, 'ETH');
-      console.log('Required amount:', requiredInEth, 'ETH');
-
-      if (tradeType === 'buy' && balance < requiredAmount) {
-        throw new Error(
-          `Insufficient ETH balance. You have ${balanceInEth.toFixed(4)} ETH but need ${requiredInEth.toFixed(4)} ETH`
-        );
-      }
+      console.log('ETH balance:', ethBalance, 'ETH');
+      console.log('Token balance:', tokenBalance, novel.coinSymbol);
+      console.log(
+        'Required amount:',
+        requiredInEth,
+        tradeType === 'buy' ? 'ETH' : novel.coinSymbol
+      );
 
       // Check if amount is too small
       if (requiredInEth < 0.001) {
-        throw new Error('Minimum trade amount is 0.001 ETH');
+        throw new Error('Minimum trade amount is 0.001');
       }
 
       // Create wallet client that works with Thirdweb's smart wallet
@@ -267,8 +320,11 @@ export default function TradingModal({ isOpen, onClose, novel }: TradingModalPro
       if (error.message?.includes('Quote failed') || error.message?.includes('500')) {
         errorMessage =
           'This coin cannot be traded yet. It may not exist on Base Sepolia, lack liquidity, or trading may not be enabled. Please verify the coin contract address.';
-      } else if (error.message?.includes('insufficient')) {
-        errorMessage = 'Insufficient balance for this transaction.';
+      } else if (
+        error.message?.includes('insufficient') ||
+        error.message?.includes('Insufficient')
+      ) {
+        errorMessage = error.message; // Use the specific insufficient balance message
       } else if (error.message?.includes('User rejected')) {
         errorMessage = 'Transaction was rejected by user.';
       } else if (error.message?.includes('Invalid coin address')) {
@@ -343,17 +399,34 @@ export default function TradingModal({ isOpen, onClose, novel }: TradingModalPro
       <div className="relative mx-4 w-full max-w-md">
         <div className="rounded-3xl border border-white/20 bg-gradient-to-br from-purple-900/95 via-blue-900/95 to-indigo-900/95 backdrop-blur-xl">
           {/* Header */}
-          <div className="flex items-center justify-between border-b border-white/10 p-6">
-            <div>
-              <h3 className="text-xl font-bold text-white">Trade {novel.coinSymbol}</h3>
+          <div className="flex items-center justify-between border-b border-white/10 p-6 pb-2">
+            <div className="flex-1">
+              <div className="flex justify-between">
+                <h3 className="text-xl font-bold text-white">Trade {novel.coinSymbol}</h3>
+                <button
+                  onClick={handleClose}
+                  className="rounded-full p-2 text-white/70 transition-all hover:bg-white/10 hover:text-white"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
               <p className="text-sm text-white/70">{novel.coinName}</p>
+              {!isTrading && (
+                <div className="mt-2 flex items-center space-x-1 text-sm text-white/70">
+                  <Wallet className="h-4 w-4" />
+                  <span>
+                    Balance:{' '}
+                    <span className="font-semibold text-white">
+                      {parseFloat(ethBalance).toFixed(4)} ETH
+                    </span>
+                    <span className="mx-2 text-white/50">•</span>
+                    <span className="font-semibold text-white">
+                      {parseFloat(tokenBalance).toFixed(2)} {novel.coinSymbol}
+                    </span>
+                  </span>
+                </div>
+              )}
             </div>
-            <button
-              onClick={handleClose}
-              className="rounded-full p-2 text-white/70 transition-all hover:bg-white/10 hover:text-white"
-            >
-              <X className="h-5 w-5" />
-            </button>
           </div>
 
           {/* Trading Interface */}
@@ -474,6 +547,19 @@ export default function TradingModal({ isOpen, onClose, novel }: TradingModalPro
                     </span>
                   )}
                 </div>
+                {/* Balance validation warnings */}
+                {amount && parseFloat(amount) > 0 && (
+                  <>
+                    {tradeType === 'buy' && parseFloat(amount) > parseFloat(ethBalance) && (
+                      <p className="text-sm text-red-400">Amount exceeds ETH balance.</p>
+                    )}
+                    {tradeType === 'sell' && parseFloat(amount) > parseFloat(tokenBalance) && (
+                      <p className="text-sm text-red-400">
+                        Amount exceeds {novel.coinSymbol} balance.
+                      </p>
+                    )}
+                  </>
+                )}
               </div>
             )}
 
@@ -507,7 +593,11 @@ export default function TradingModal({ isOpen, onClose, novel }: TradingModalPro
               <button
                 onClick={handleTrade}
                 disabled={
-                  !amount || connectionStatus !== 'connected' || parseFloat(amount || '0') < 0.001
+                  !amount ||
+                  connectionStatus !== 'connected' ||
+                  parseFloat(amount || '0') < 0.001 ||
+                  (tradeType === 'buy' && parseFloat(amount || '0') > parseFloat(ethBalance)) ||
+                  (tradeType === 'sell' && parseFloat(amount || '0') > parseFloat(tokenBalance))
                 }
                 className="w-full rounded-xl bg-gradient-to-r from-emerald-400 via-teal-400 to-blue-400 px-6 py-4 font-semibold text-white shadow-lg transition-all hover:from-emerald-500 hover:via-teal-500 hover:to-blue-500 hover:shadow-xl disabled:cursor-not-allowed disabled:opacity-50"
               >

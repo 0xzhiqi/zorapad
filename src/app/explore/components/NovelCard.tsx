@@ -52,7 +52,7 @@ export default function NovelCard({ novel, onTradeClick }: NovelCardProps) {
 
           <Link
             href={`/explore/${novel.id}?coinAddress=${novel.coinAddress || ''}&novelAddress=${novel.novelAddress || ''}`}
-            className="group relative mb-5 flex w-1/3 items-center justify-center space-x-1 overflow-hidden rounded-lg border-2 border-purple-200 bg-purple-100 px-3 py-2 text-sm font-semibold text-purple-600 backdrop-blur-sm transition-all duration-300 hover:scale-105 hover:bg-purple-200"
+            className="group relative mb-5 flex w-24 items-center justify-center space-x-1 overflow-hidden rounded-lg border-2 border-purple-200 bg-purple-100 px-3 py-2 text-sm font-semibold text-purple-600 backdrop-blur-sm transition-all duration-300 hover:scale-105 hover:bg-purple-200"
           >
             {/* Shimmer effect */}
             <div className="group-hover:animate-shimmer absolute inset-0 -top-px bg-gradient-to-r from-transparent via-white/20 to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
