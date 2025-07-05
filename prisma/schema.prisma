@@ -138,6 +138,7 @@ model Novel {
   coinAddress         String? // Address of the deployed coin contract
   novelAddress        String? // Address of the deployed novel contract
   coinTransactionHash String? // Transaction hash of coin creation
+  novelContractTransactionHash String? // Transaction hash of novel contract creation
   owners              String? // Wallet address of the coin owners
   payoutRecipient     String? // Wallet address for payouts
   authorId            String           @db.ObjectId

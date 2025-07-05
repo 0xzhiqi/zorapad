@@ -7,11 +7,15 @@ import { BookOpen, Check, Loader2, X } from 'lucide-react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 import { createThirdwebClient, defineChain } from 'thirdweb';
+import { deployContract } from 'thirdweb/deploys';
 import { useActiveAccount } from 'thirdweb/react';
+import { privateKeyToAccount } from 'thirdweb/wallets';
 import { createPublicClient, createWalletClient, custom, http } from 'viem';
 import { baseSepolia } from 'viem/chains';
 
-import { createInitialNovel, deleteNovel, updateNovelWithCoin } from './actions';
+import { NOVEL_CONTRACT_ABI, NOVEL_CONTRACT_BYTECODE } from '@/constants/contracts/novel';
+
+import { createInitialNovel, deleteNovel, updateNovelWithContract } from './actions';
 
 // Create Thirdweb client
 const client = createThirdwebClient({
@@ -45,9 +49,10 @@ const LaunchNewNovelPage = () => {
   const [showSuccessPopup, setShowSuccessPopup] = useState(false);
 
   const [progressSteps, setProgressSteps] = useState<ProgressStep[]>([
-    { id: 1, title: 'Creating Novel', status: 'pending' },
+    { id: 1, title: 'Creating Novel Entry', status: 'pending' },
     { id: 2, title: 'Launching Coin', status: 'pending' },
-    { id: 3, title: 'Finalising Details', status: 'pending' },
+    { id: 3, title: 'Deploying Contract', status: 'pending' },
+    { id: 4, title: 'Finalising Details', status: 'pending' },
   ]);
 
   console.log('Session:', session);
@@ -102,17 +107,25 @@ const LaunchNewNovelPage = () => {
       return;
     }
 
+    // Check if private key is available
+    if (!process.env.NEXT_PUBLIC_PRIVATE_KEY) {
+      setError('Deployment private key not configured');
+      return;
+    }
+
     setIsLaunching(true);
     setError('');
 
     // Reset progress steps
     setProgressSteps([
-      { id: 1, title: 'Creating Novel', status: 'pending' },
+      { id: 1, title: 'Creating Novel Entry', status: 'pending' },
       { id: 2, title: 'Launching Coin', status: 'pending' },
-      { id: 3, title: 'Finalising Details', status: 'pending' },
+      { id: 3, title: 'Deploying Contract', status: 'pending' },
+      { id: 4, title: 'Finalising Details', status: 'pending' },
     ]);
 
     let novelId: string | null = null;
+    let coinAddress: string | null = null;
 
     try {
       const smartWalletAddress = account.address;
@@ -220,39 +233,88 @@ const LaunchNewNovelPage = () => {
         throw new Error('Failed to get coin address from deployment result');
       }
 
+      coinAddress = coinResult.address;
       updateStepStatus(2, 'completed');
 
-      // Step 3: Update novel with coin details
+      // Step 3: Deploy Novel contract using Thirdweb with private key wallet
       updateStepStatus(3, 'active');
 
-      const updateResult = await updateNovelWithCoin({
-        novelId: novelId,
-        coinAddress: coinResult.address,
-        coinTransactionHash: coinResult.hash || '',
+      console.log('Deploying Novel contract with params:', {
+        coinAddress: coinAddress,
+        creatorAddress: smartWalletAddress,
       });
 
-      if (!updateResult.success) {
-        throw new Error(updateResult.error || 'Failed to update novel with coin details');
+      try {
+        // Create a private key account for deployment
+        const deploymentAccount = privateKeyToAccount({
+          client,
+          privateKey: process.env.NEXT_PUBLIC_PRIVATE_KEY as `0x${string}`,
+        });
+
+        console.log('Using deployment account:', deploymentAccount.address);
+
+        // Deploy the Novel contract using the private key account
+        const contractAddress = await deployContract({
+          client,
+          chain: baseSepoliaChain,
+          account: deploymentAccount,
+          constructorParams: {
+            _coinAddress: coinAddress,
+            _creatorAddress: smartWalletAddress,
+          },
+          bytecode: NOVEL_CONTRACT_BYTECODE as `0x${string}`,
+          abi: NOVEL_CONTRACT_ABI,
+        });
+
+        console.log('Contract deployment result:', contractAddress);
+
+        if (!contractAddress) {
+          throw new Error('Failed to get contract address from deployment result');
+        }
+
+        // The contractAddress should now be the actual contract address
+        const finalContractAddress = contractAddress;
+        console.log('Novel contract deployed successfully:', finalContractAddress);
+        updateStepStatus(3, 'completed');
+
+        // Step 4: Update novel with both coin and contract details
+        updateStepStatus(4, 'active');
+
+        const updateResult = await updateNovelWithContract({
+          novelId: novelId,
+          coinAddress: coinAddress,
+          coinTransactionHash: coinResult.hash || '',
+          novelAddress: finalContractAddress,
+          novelContractTransactionHash: '', // We don't have the transaction hash from deployContract
+        });
+
+        if (!updateResult.success) {
+          throw new Error(updateResult.error || 'Failed to update novel with contract details');
+        }
+
+        updateStepStatus(4, 'completed');
+        setSuccess('Novel, coin, and contract launched successfully!');
+
+        // Show success popup
+        setShowSuccessPopup(true);
+
+        // Redirect to novel page after 2 seconds
+        setTimeout(() => {
+          router.push(`/edit-novel/${novelId}`);
+        }, 2000);
+      } catch (contractError: any) {
+        console.error('Contract deployment error:', contractError);
+        updateStepStatus(3, 'error');
+        throw new Error(`Contract deployment failed: ${contractError.message}`);
       }
-
-      updateStepStatus(3, 'completed');
-      setSuccess('Novel and coin launched successfully!');
-
-      // Show success popup
-      setShowSuccessPopup(true);
-
-      // Redirect to novel page after 1.5 seconds
-      setTimeout(() => {
-        router.push(`/edit-novel/${novelId}`);
-      }, 2000);
     } catch (error: any) {
       console.error('Error in novel creation process:', error);
 
-      // If we have a novel ID and coin creation failed, delete the novel
-      if (novelId && !error.message.includes('Failed to update novel')) {
+      // If we have a novel ID and deployment failed, delete the novel
+      if (novelId) {
         try {
           await deleteNovel(novelId);
-          console.log('Cleaned up novel entry after coin creation failure');
+          console.log('Cleaned up novel entry after deployment failure');
         } catch (deleteError) {
           console.error('Failed to clean up novel entry:', deleteError);
         }
@@ -304,7 +366,9 @@ const LaunchNewNovelPage = () => {
                 <BookOpen className="h-8 w-8 text-white" />
               </div>
               <h1 className="mb-2 text-4xl font-bold text-purple-600">Launch New Novel</h1>
-              <p className="text-gray-600">Bring your story to life with a coin on ZoraPad</p>
+              <p className="text-gray-600">
+                Bring your story to life with a coin and contract on ZoraPad
+              </p>
             </div>
 
             {/* Progress Steps - Show only when launching */}
@@ -334,7 +398,7 @@ const LaunchNewNovelPage = () => {
                           )}
                         </div>
                         <span
-                          className={`mt-2 text-sm font-medium ${
+                          className={`mt-2 text-center text-xs font-medium ${
                             step.status === 'completed'
                               ? 'text-green-600'
                               : step.status === 'active'
@@ -349,7 +413,7 @@ const LaunchNewNovelPage = () => {
                       </div>
                       {index < progressSteps.length - 1 && (
                         <div
-                          className={`mx-4 h-1 w-16 ${
+                          className={`mx-2 h-1 w-12 ${
                             progressSteps[index + 1].status === 'completed' ||
                             progressSteps[index + 1].status === 'active'
                               ? 'bg-purple-300'

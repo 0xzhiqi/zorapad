@@ -18,6 +18,14 @@ interface UpdateNovelWithCoinData {
   coinTransactionHash: string;
 }
 
+interface UpdateNovelWithContractData {
+  novelId: string;
+  coinAddress: string;
+  coinTransactionHash: string;
+  novelAddress: string;
+  novelContractTransactionHash: string;
+}
+
 // Step 1: Create initial novel entry in database
 export async function createInitialNovel(data: CreateInitialNovelData) {
   try {
@@ -48,7 +56,7 @@ export async function createInitialNovel(data: CreateInitialNovelData) {
         owners: data.owners,
         payoutRecipient: data.payoutRecipient,
         authorId: user.id,
-        // coinAddress and coinTransactionHash will be null initially
+        // coinAddress, novelAddress, and transaction hashes will be null initially
       },
     });
 
@@ -62,7 +70,7 @@ export async function createInitialNovel(data: CreateInitialNovelData) {
   }
 }
 
-// Step 3: Update novel with coin details after successful coin creation
+// Step 3: Update novel with coin details after successful coin creation (legacy function - keep for compatibility)
 export async function updateNovelWithCoin(data: UpdateNovelWithCoinData) {
   try {
     const novel = await prisma.novel.update({
@@ -83,7 +91,31 @@ export async function updateNovelWithCoin(data: UpdateNovelWithCoinData) {
   }
 }
 
-// Delete novel if coin creation fails
+// Step 4: Update novel with both coin and contract details after successful deployments
+export async function updateNovelWithContract(data: UpdateNovelWithContractData) {
+  try {
+    const novel = await prisma.novel.update({
+      where: { id: data.novelId },
+      data: {
+        coinAddress: data.coinAddress,
+        coinTransactionHash: data.coinTransactionHash,
+        novelAddress: data.novelAddress,
+        novelContractTransactionHash: data.novelContractTransactionHash,
+      },
+    });
+
+    return { success: true, novel };
+  } catch (error) {
+    console.error('Error updating novel with contract details:', error);
+    return {
+      success: false,
+      error:
+        error instanceof Error ? error.message : 'Failed to update novel with contract details',
+    };
+  }
+}
+
+// Delete novel if deployment fails
 export async function deleteNovel(novelId: string) {
   try {
     await prisma.novel.delete({
@@ -103,5 +135,5 @@ export async function deleteNovel(novelId: string) {
 // Keep the original function for backward compatibility
 export async function createNovel(data: any) {
   // This function is kept for backward compatibility but won't be used in the new flow
-  return { success: false, error: 'Use the new 3-step process instead' };
+  return { success: false, error: 'Use the new 4-step process instead' };
 }
