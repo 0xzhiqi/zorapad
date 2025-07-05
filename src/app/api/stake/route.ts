@@ -28,23 +28,28 @@ export async function POST(req: NextRequest) {
     let stake;
 
     if (existingStake) {
+      // Convert both amounts to numbers, add them, then convert back to string
+      const existingAmount = parseFloat(existingStake.amountStaked);
+      const newAmount = parseFloat(amountStaked);
+      const totalAmount = existingAmount + newAmount;
+
       // Update existing stake by adding the new amount
       stake = await prisma.revenueStaking.update({
         where: {
           id: existingStake.id,
         },
         data: {
-          amountStaked: existingStake.amountStaked + amountStaked,
+          amountStaked: totalAmount.toString(),
           stakeTransactionHash, // Update with latest transaction hash
         },
       });
     } else {
-      // Create new stake
+      // Create new stake - ensure amountStaked is stored as string
       stake = await prisma.revenueStaking.create({
         data: {
           userId: session.user.id,
           novelId,
-          amountStaked,
+          amountStaked: parseFloat(amountStaked).toString(),
           stakeTransactionHash,
         },
       });

@@ -279,6 +279,7 @@ model RevenueStaking {
   novelId                String   @db.ObjectId
   amountStaked           String
   stakeTransactionHash   String   @unique
+  unstaked Boolean?
   unstakeTransactionHash String?  @unique
   createdAt              DateTime @default(now())
   updatedAt              DateTime @updatedAt

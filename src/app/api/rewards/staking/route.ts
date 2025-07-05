@@ -57,8 +57,8 @@ export async function GET(request: NextRequest) {
                   include: {
                     novel: {
                       select: {
-                        title: true,           // Add this line
-                        coinSymbol: true,      // Add this line
+                        title: true,
+                        coinSymbol: true,
                         coinAddress: true,
                         novelAddress: true,
                       },
@@ -79,6 +79,7 @@ export async function GET(request: NextRequest) {
     const transformedStakes = stakingRewards.map((stake) => ({
       id: stake.id,
       stakeAmount: stake.stakeAmount,
+      stakersReward: stake.reply.request.stakersReward, // Add this line
       claimed: stake.claimed,
       replyId: stake.replyId,
       request: {

@@ -11,6 +11,7 @@ import {
   Loader2,
   MessageSquare,
   TrendingUp,
+  Unplug,
 } from 'lucide-react';
 import { useSession } from 'next-auth/react';
 import { prepareContractCall, sendTransaction } from 'thirdweb';
@@ -69,6 +70,7 @@ interface ReplyBounty {
 interface StakingReward {
   id: string;
   stakeAmount: string;
+  stakersReward: string; // Add this line
   claimed: boolean;
   replyId: string;
   request: {
@@ -102,6 +104,18 @@ interface CommentStakingReward {
   };
 }
 
+interface Stake {
+  id: string;
+  amountStaked: string;
+  novel: {
+    id: string;
+    title: string;
+    coinSymbol: string;
+    novelAddress?: string;
+  };
+  unstaked: boolean | null;
+}
+
 const MyRewards = () => {
   const { data: session } = useSession();
   const account = useActiveAccount();
@@ -110,12 +124,14 @@ const MyRewards = () => {
   const [replyBounties, setReplyBounties] = useState<ReplyBounty[]>([]);
   const [stakingRewards, setStakingRewards] = useState<StakingReward[]>([]);
   const [commentStakingRewards, setCommentStakingRewards] = useState<CommentStakingReward[]>([]);
+  const [stakes, setStakes] = useState<Stake[]>([]);
   const [loading, setLoading] = useState(true);
   const [claimingBounty, setClaimingBounty] = useState<string | null>(null);
   const [claimingComment, setClaimingComment] = useState<string | null>(null);
   const [claimingReply, setClaimingReply] = useState<string | null>(null);
   const [claimingStake, setClaimingStake] = useState<string | null>(null);
   const [claimingCommentStake, setClaimingCommentStake] = useState<string | null>(null);
+  const [unstaking, setUnstaking] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -159,10 +175,19 @@ const MyRewards = () => {
         }
 
         // Fetch comment bounty staking rewards
-        const commentStakingResponse = await fetch(`/api/rewards/comment-staking?userId=${session.user.id}`);
+        const commentStakingResponse = await fetch(
+          `/api/rewards/comment-staking?userId=${session.user.id}`
+        );
         if (commentStakingResponse.ok) {
           const commentStakes = await commentStakingResponse.json();
           setCommentStakingRewards(commentStakes);
+        }
+
+        // Fetch novel revenue stakes
+        const stakesResponse = await fetch('/api/stakes/user');
+        if (stakesResponse.ok) {
+          const stakesData = await stakesResponse.json();
+          setStakes(stakesData);
         }
       } catch (err) {
         setError('Failed to load rewards');
@@ -179,6 +204,44 @@ const MyRewards = () => {
     const value = parseFloat(amount);
     if (isNaN(value)) return '0';
     return value.toLocaleString();
+  };
+
+  const handleUnstake = async (stakeId: string, amount: string) => {
+    if (!account) {
+      alert('Please connect your wallet');
+      return;
+    }
+
+    setUnstaking(stakeId);
+    try {
+      // This is a placeholder for the actual unstaking logic.
+      // You would call your smart contract here.
+      console.log(`Unstaking ${amount} for stake ${stakeId}`);
+      await new Promise((resolve) => setTimeout(resolve, 2000)); // Simulate network delay
+
+      // After successful unstaking, update the UI.
+      // This would typically involve a call to your backend to update the stake's status.
+      const response = await fetch(`/api/stakes/unstake`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ stakeId }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to update stake status');
+      }
+
+      setStakes((prevStakes) =>
+        prevStakes.map((stake) => (stake.id === stakeId ? { ...stake, unstaked: true } : stake))
+      );
+    } catch (err) {
+      console.error('Unstaking failed:', err);
+      alert('Failed to unstake');
+    } finally {
+      setUnstaking(null);
+    }
   };
 
   const claimRequestBounty = async (requestId: string, novelAddress: string) => {
@@ -499,10 +562,54 @@ const MyRewards = () => {
     </div>
   );
 
+  const UnstakeButton = ({
+    onClick,
+    loading,
+    disabled,
+  }: {
+    onClick: () => void;
+    loading: boolean;
+    disabled?: boolean;
+  }) => (
+    <div className="flex justify-center">
+      <button
+        onClick={onClick}
+        disabled={disabled || loading}
+        className="group relative flex w-28 items-center justify-center space-x-1 overflow-hidden rounded-lg bg-gradient-to-br from-purple-400 to-purple-600 px-3 py-2 text-sm font-semibold text-white shadow-lg transition-all duration-300 hover:scale-105 hover:from-purple-500 hover:to-purple-700 hover:shadow-xl disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:scale-100 disabled:hover:shadow-lg"
+      >
+        {/* Shimmer effect */}
+        <div className="group-hover:animate-shimmer absolute inset-0 -top-px bg-gradient-to-r from-transparent via-white/20 to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
+
+        {/* Inner glow */}
+        <div className="absolute inset-0.5 rounded-md bg-gradient-to-br from-purple-300/30 to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
+
+        {/* Content */}
+        <div className="relative z-10 flex items-center space-x-1">
+          {loading ? (
+            <Loader2 className="h-4 w-4 animate-spin drop-shadow-sm" />
+          ) : (
+            <Unplug className="h-4 w-4 drop-shadow-sm transition-transform duration-200 group-hover:scale-110" />
+          )}
+          <span className="drop-shadow-sm">{loading ? 'Unstaking...' : 'Unstake'}</span>
+        </div>
+
+        {/* Ripple effect on click */}
+        <div className="absolute inset-0 rounded-lg bg-white/20 opacity-0 transition-opacity duration-150 group-active:opacity-100" />
+      </button>
+    </div>
+  );
+
   const ClaimedLabel = () => (
     <div className="inline-flex w-28 items-center justify-center rounded-md bg-gray-100 px-3 py-2 text-sm font-semibold text-gray-600">
       <CircleCheckBig className="mr-2 h-5 w-5 text-gray-500" />
       Claimed
+    </div>
+  );
+
+  const UnstakedLabel = () => (
+    <div className="inline-flex w-28 items-center justify-center rounded-md bg-gray-100 px-3 py-2 text-sm font-semibold text-gray-600">
+      <CircleCheckBig className="mr-2 h-5 w-5 text-gray-500" />
+      Unstaked
     </div>
   );
 
@@ -737,67 +844,80 @@ const MyRewards = () => {
             </div>
           ) : (
             <div className="overflow-x-auto">
-              {/* Desktop Table for Staking Rewards */}
-              <div className="hidden md:block">
-                <table className="w-full table-auto">
-                  <thead>
-                    <tr className="border-b border-purple-100 bg-gradient-to-r from-purple-50 to-pink-50">
-                      <th className="px-6 py-4 text-left text-sm font-semibold text-purple-700">
-                        Story Title
-                      </th>
-                      <th className="px-6 py-4 text-left text-sm font-semibold text-purple-700">
-                        Stake Amount
-                      </th>
-                      <th className="px-6 py-4 text-center text-sm font-semibold text-purple-700">
-                        Action
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {stakingRewards.map((stake, index) => (
-                      <tr
-                        key={stake.id}
-                        className={`border-b border-purple-50 ${index % 2 === 0 ? 'bg-white/30' : 'bg-purple-50/30'} transition-colors duration-200 hover:bg-purple-50/50`}
-                      >
-                        <td className="px-6 py-5 font-medium text-gray-800">
-                          {stake.request.chapter.novel.title}
-                        </td>
-                        <td className="px-6 py-5">
-                          <span className="font-semibold text-purple-600">
-                            {formatAmount(stake.stakeAmount)}
-                          </span>
-                          <span className="ml-2 text-purple-600">
-                            {stake.request.chapter.novel.coinSymbol}
-                          </span>
-                        </td>
-                        <td className="px-6 py-5">
-                          <div className="flex justify-center">
-                            {stake.claimed ? (
-                              <ClaimedLabel />
-                            ) : (
-                              <ClaimButton
-                                onClick={() =>
-                                  claimStakingReward(
-                                    stake.id,
-                                    stake.request.id,
-                                    stake.replyId,
-                                    stake.request.chapter.novel.novelAddress!
-                                  )
-                                }
-                                loading={claimingStake === stake.id}
-                                disabled={
-                                  !stake.request.isAwarded ||
-                                  stake.request.winningReplyId !== stake.replyId ||
-                                  !stake.request.chapter.novel.novelAddress
-                                }
-                              />
-                            )}
-                          </div>
-                        </td>
+              <div className="overflow-hidden rounded-2xl border border-purple-100 bg-white/50 shadow-sm">
+                {/* Desktop Table for Staking Rewards */}
+                <div className="hidden md:block">
+                  <table className="w-full table-auto">
+                    <thead>
+                      <tr className="border-b border-purple-100 bg-gradient-to-r from-purple-50 to-pink-50">
+                        <th className="px-6 py-4 text-left text-sm font-semibold text-purple-700">
+                          Story Title
+                        </th>
+                        <th className="px-6 py-4 text-left text-sm font-semibold text-purple-700">
+                          Stake Amount
+                        </th>
+                        <th className="px-6 py-4 text-left text-sm font-semibold text-purple-700">
+                          Staking Rewards
+                        </th>
+                        <th className="px-6 py-4 text-center text-sm font-semibold text-purple-700">
+                          Action
+                        </th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
+                    </thead>
+                    <tbody>
+                      {stakingRewards.map((stake, index) => (
+                        <tr
+                          key={stake.id}
+                          className={`border-b border-purple-50 ${index % 2 === 0 ? 'bg-white/30' : 'bg-purple-50/30'} transition-colors duration-200 hover:bg-purple-50/50`}
+                        >
+                          <td className="px-6 py-5 font-medium text-gray-800">
+                            {stake.request.chapter.novel.title}
+                          </td>
+                          <td className="px-6 py-5">
+                            <span className="font-semibold text-purple-600">
+                              {formatAmount(stake.stakeAmount)}
+                            </span>
+                            <span className="ml-2 text-purple-600">
+                              {stake.request.chapter.novel.coinSymbol}
+                            </span>
+                          </td>
+                          <td className="px-6 py-5">
+                            <span className="font-semibold text-green-600">
+                              {formatAmount(stake.stakersReward)}
+                            </span>
+                            <span className="ml-2 text-green-600">
+                              {stake.request.chapter.novel.coinSymbol}
+                            </span>
+                          </td>
+                          <td className="px-6 py-5">
+                            <div className="flex justify-center">
+                              {stake.claimed ? (
+                                <ClaimedLabel />
+                              ) : (
+                                <ClaimButton
+                                  onClick={() =>
+                                    claimStakingReward(
+                                      stake.id,
+                                      stake.request.id,
+                                      stake.replyId,
+                                      stake.request.chapter.novel.novelAddress!
+                                    )
+                                  }
+                                  loading={claimingStake === stake.id}
+                                  disabled={
+                                    !stake.request.isAwarded ||
+                                    stake.request.winningReplyId !== stake.replyId ||
+                                    !stake.request.chapter.novel.novelAddress
+                                  }
+                                />
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               </div>
             </div>
           )}
@@ -848,17 +968,13 @@ const MyRewards = () => {
                             <span className="font-semibold text-purple-600">
                               {formatAmount(stake.stakeAmount)}
                             </span>
-                            <span className="ml-2 text-purple-600">
-                              {stake.novel.coinSymbol}
-                            </span>
+                            <span className="ml-2 text-purple-600">{stake.novel.coinSymbol}</span>
                           </td>
                           <td className="px-6 py-5">
                             <span className="font-semibold text-green-600">
                               {formatAmount(stake.stakersReward)}
                             </span>
-                            <span className="ml-2 text-green-600">
-                              {stake.novel.coinSymbol}
-                            </span>
+                            <span className="ml-2 text-green-600">{stake.novel.coinSymbol}</span>
                           </td>
                           <td className="px-6 py-5">
                             <div className="flex justify-center">
@@ -892,9 +1008,75 @@ const MyRewards = () => {
         {/* Novel Revenue Staking Subsection */}
         <div>
           <h4 className="text-md mb-3 font-medium text-purple-600">3. Novel Revenue Staking</h4>
-          <div className="rounded-lg border border-gray-200 bg-gray-50 p-4 text-center">
-            <p className="text-sm text-gray-500">Coming soon</p>
-          </div>
+
+          {stakes.length === 0 ? (
+            <div className="rounded-lg border border-gray-200 bg-gray-50 p-4 text-center">
+              <p className="text-sm text-gray-500">No novel revenue stakes available</p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <div className="overflow-hidden rounded-2xl border border-purple-100 bg-white/50 shadow-sm">
+                {/* Desktop Table for Novel Revenue Staking */}
+                <div className="hidden md:block">
+                  <table className="w-full table-auto">
+                    <thead>
+                      <tr className="border-b border-purple-100 bg-gradient-to-r from-purple-50 to-pink-50">
+                        <th className="px-6 py-4 text-left text-sm font-semibold text-purple-700">
+                          Story Title
+                        </th>
+                        <th className="px-6 py-4 text-left text-sm font-semibold text-purple-700">
+                          Stake Amount
+                        </th>
+                        <th className="px-6 py-4 text-left text-sm font-semibold text-purple-700">
+                          Staking Rewards
+                        </th>
+                        <th className="px-6 py-4 text-center text-sm font-semibold text-purple-700">
+                          Action
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {stakes.map((stake, index) => (
+                        <tr
+                          key={stake.id}
+                          className={`border-b border-purple-50 ${
+                            index % 2 === 0 ? 'bg-white/30' : 'bg-purple-50/30'
+                          } transition-colors duration-200 hover:bg-purple-50/50`}
+                        >
+                          <td className="px-6 py-5 font-medium text-gray-800">
+                            {stake.novel.title}
+                          </td>
+                          <td className="px-6 py-5">
+                            <span className="font-semibold text-purple-600">
+                              {formatAmount(stake.amountStaked)}
+                            </span>
+                            <span className="ml-2 text-purple-600">{stake.novel.coinSymbol}</span>
+                          </td>
+                          <td className="px-6 py-5">
+                            <span className="font-semibold text-green-600">0</span>
+                            <span className="ml-2 text-green-600">{stake.novel.coinSymbol}</span>
+                          </td>
+                          <td className="px-6 py-5">
+                            <div className="flex justify-center">
+                              {stake.unstaked ? (
+                                <UnstakedLabel />
+                              ) : (
+                                <UnstakeButton
+                                  onClick={() => handleUnstake(stake.id, stake.amountStaked)}
+                                  loading={unstaking === stake.id}
+                                  disabled={!stake.novel.novelAddress}
+                                />
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>
