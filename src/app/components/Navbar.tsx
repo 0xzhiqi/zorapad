@@ -76,7 +76,10 @@ const Navbar: React.FC<NavbarProps> = ({ isMobileMenuOpen, setIsMobileMenuOpen }
         className={`fixed top-0 right-0 left-0 z-50 p-6 transition-all duration-300 ease-in-out ${getNavbarBackground()}`}
       >
         <div className="mx-auto flex max-w-7xl items-center justify-between">
-          <div className="flex items-center space-x-4">
+          <Link
+            href="/"
+            className="flex items-center space-x-4 transition-transform duration-300 hover:scale-105"
+          >
             <Feather
               className="h-10 w-10 drop-shadow-lg"
               strokeWidth={1.5}
@@ -89,7 +92,7 @@ const Navbar: React.FC<NavbarProps> = ({ isMobileMenuOpen, setIsMobileMenuOpen }
             <h1 className="bg-gradient-to-r from-pink-400 to-violet-400 bg-clip-text text-3xl font-bold text-transparent">
               ZoraPad
             </h1>
-          </div>
+          </Link>
 
           {/* Desktop Navigation */}
           <div className="hidden items-center space-x-8 md:flex">
@@ -104,12 +107,6 @@ const Navbar: React.FC<NavbarProps> = ({ isMobileMenuOpen, setIsMobileMenuOpen }
               className={`${textColor} transition-colors duration-300 ${textColorHover}`}
             >
               Community
-            </Link>
-            <Link
-              href="/about"
-              className={`${textColor} transition-colors duration-300 ${textColorHover}`}
-            >
-              About
             </Link>
             {session ? (
               <Link
@@ -152,12 +149,6 @@ const Navbar: React.FC<NavbarProps> = ({ isMobileMenuOpen, setIsMobileMenuOpen }
                 className={`py-2 ${textColor} transition-colors duration-300 ${textColorHover}`}
               >
                 Community
-              </Link>
-              <Link
-                href="/about"
-                className={`py-2 ${textColor} transition-colors duration-300 ${textColorHover}`}
-              >
-                About
               </Link>
               {session ? (
                 <Link
