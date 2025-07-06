@@ -49,9 +49,9 @@ const LaunchNewNovelPage = () => {
   const [showSuccessPopup, setShowSuccessPopup] = useState(false);
 
   const [progressSteps, setProgressSteps] = useState<ProgressStep[]>([
-    { id: 1, title: 'Creating Novel Entry', status: 'pending' },
+    { id: 1, title: 'Launching Novel', status: 'pending' },
     { id: 2, title: 'Launching Coin', status: 'pending' },
-    { id: 3, title: 'Deploying Contract', status: 'pending' },
+    { id: 3, title: 'Receiving Coin', status: 'pending' },
     { id: 4, title: 'Finalising Details', status: 'pending' },
   ]);
 
@@ -118,9 +118,9 @@ const LaunchNewNovelPage = () => {
 
     // Reset progress steps
     setProgressSteps([
-      { id: 1, title: 'Creating Novel Entry', status: 'pending' },
+      { id: 1, title: 'Launching Novel', status: 'pending' },
       { id: 2, title: 'Launching Coin', status: 'pending' },
-      { id: 3, title: 'Deploying Contract', status: 'pending' },
+      { id: 3, title: 'Receiving Coin', status: 'pending' },
       { id: 4, title: 'Finalising Details', status: 'pending' },
     ]);
 
@@ -359,7 +359,6 @@ const LaunchNewNovelPage = () => {
             >
               <X className="h-5 w-5" />
             </button>
-
             {/* Header Inside Form */}
             <div className="mb-8 text-center">
               <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-r from-pink-500 to-violet-500">
@@ -370,7 +369,6 @@ const LaunchNewNovelPage = () => {
                 Bring your story to life with a coin and contract on ZoraPad
               </p>
             </div>
-
             {/* Progress Steps - Show only when launching */}
             {isLaunching && (
               <div className="mb-8">
@@ -381,20 +379,22 @@ const LaunchNewNovelPage = () => {
                         <div
                           className={`flex h-10 w-10 items-center justify-center rounded-full border-2 ${
                             step.status === 'completed'
-                              ? 'border-green-500 bg-green-500 text-white'
+                              ? 'border-green-500 bg-gradient-to-br from-green-400 to-green-600 text-white'
                               : step.status === 'active'
-                                ? 'border-purple-500 bg-purple-500 text-white'
+                                ? 'border-purple-500 bg-gradient-to-br from-purple-400 to-purple-600 text-white'
                                 : step.status === 'error'
-                                  ? 'border-red-500 bg-red-500 text-white'
-                                  : 'border-gray-300 bg-gray-200 text-gray-500'
+                                  ? 'border-red-500 bg-gradient-to-br from-red-400 to-red-600 text-white'
+                                  : 'border-gray-300 bg-gradient-to-br from-gray-300 to-gray-500 text-white'
                           }`}
                         >
                           {step.status === 'completed' ? (
                             <Check className="h-5 w-5" />
                           ) : step.status === 'active' ? (
                             <Loader2 className="h-5 w-5 animate-spin" />
+                          ) : step.status === 'error' ? (
+                            <X className="h-5 w-5" />
                           ) : (
-                            step.id
+                            <span className="text-xs font-medium text-white">{step.id}</span>
                           )}
                         </div>
                         <span
@@ -414,10 +414,11 @@ const LaunchNewNovelPage = () => {
                       {index < progressSteps.length - 1 && (
                         <div
                           className={`mx-2 h-1 w-12 ${
-                            progressSteps[index + 1].status === 'completed' ||
-                            progressSteps[index + 1].status === 'active'
-                              ? 'bg-purple-300'
-                              : 'bg-gray-300'
+                            progressSteps[index + 1].status === 'completed'
+                              ? 'bg-green-400'
+                              : progressSteps[index + 1].status === 'active'
+                                ? 'bg-purple-300'
+                                : 'bg-gray-300'
                           }`}
                         />
                       )}
@@ -426,7 +427,6 @@ const LaunchNewNovelPage = () => {
                 </div>
               </div>
             )}
-
             <form onSubmit={handleSubmit} className="space-y-6">
               {/* Novel Title */}
               <div>

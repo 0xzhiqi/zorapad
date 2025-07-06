@@ -3,6 +3,8 @@
 import { useEffect, useRef, useState } from 'react';
 
 import {
+  Check,
+  CircleCheckBig,
   CircleDollarSign,
   Crown,
   HandCoins,
@@ -87,6 +89,11 @@ interface UpvoteDialogProps {
   requestId: string | null;
   novel?: Novel;
   onSuccess: () => void;
+  // Add these new props for optimistic updates
+  replyStats: Record<string, ReplyStats>;
+  setReplyStats: React.Dispatch<React.SetStateAction<Record<string, ReplyStats>>>;
+  userUpvotes: Set<string>;
+  setUserUpvotes: React.Dispatch<React.SetStateAction<Set<string>>>;
 }
 
 interface AwardDialogProps {
@@ -199,10 +206,10 @@ function AwardDialog({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-green-900/20 backdrop-blur-sm">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-yellow-900/20 backdrop-blur-sm">
       <div className="mx-4 w-full max-w-md rounded-lg bg-white p-6 shadow-xl">
         <div className="mb-4">
-          <h3 className="text-lg font-semibold text-green-800">Award Request</h3>
+          <h3 className="text-lg font-semibold text-yellow-800">Award Reply</h3>
           <p className="mt-2 text-sm text-gray-600">
             This will award the bounty to the reply author and staking rewards to all who have
             staked on it
@@ -211,18 +218,18 @@ function AwardDialog({
 
         {isProcessing ? (
           <div className="py-8 text-center">
-            <Loader2 className="mx-auto mb-4 h-8 w-8 animate-spin text-green-600" />
+            <Loader2 className="mx-auto mb-4 h-8 w-8 animate-spin text-yellow-600" />
             {currentStep && (
               <div className="space-y-2">
                 {currentStep.includes('|') ? (
                   <>
-                    <h4 className="text-lg font-semibold text-green-800">
+                    <h4 className="text-lg font-semibold text-yellow-800">
                       {currentStep.split('|')[0]}
                     </h4>
-                    <p className="text-green-700">{currentStep.split('|')[1]}</p>
+                    <p className="text-yellow-700">{currentStep.split('|')[1]}</p>
                   </>
                 ) : (
-                  <p className="text-green-700">{currentStep}</p>
+                  <p className="text-yellow-700">{currentStep}</p>
                 )}
               </div>
             )}
@@ -237,7 +244,7 @@ function AwardDialog({
             </button>
             <button
               onClick={handleAward}
-              className="flex-1 rounded-lg bg-green-600 px-4 py-2 text-white hover:bg-green-700"
+              className="flex-1 rounded-lg bg-yellow-600 px-4 py-2 text-white hover:bg-yellow-700"
             >
               Award
             </button>
@@ -255,13 +262,49 @@ function UpvoteDialog({
   requestId,
   novel,
   onSuccess,
+  replyStats,
+  setReplyStats,
+  userUpvotes,
+  setUserUpvotes,
 }: UpvoteDialogProps) {
   const [selectedOption, setSelectedOption] = useState<'upvote' | 'stake' | null>(null);
   const [stakeAmount, setStakeAmount] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
   const [currentStep, setCurrentStep] = useState('');
+  const [progressStep, setProgressStep] = useState<number | undefined>(undefined);
   const [balance, setBalance] = useState<string>('0');
   const account = useActiveAccount();
+
+  // Store original stats for potential reversion
+  const [originalStats, setOriginalStats] = useState<ReplyStats | null>(null);
+
+  // Progress steps for staking (3 steps)
+  const progressSteps = ['Transferring token', 'Staking token', 'Finalising upvote'];
+
+  // Helper function to update stats optimistically
+  const updateReplyStatsOptimistically = (replyId: string, updates: Partial<ReplyStats>) => {
+    setReplyStats((prev) => ({
+      ...prev,
+      [replyId]: {
+        ...prev[replyId],
+        ...updates,
+      },
+    }));
+  };
+
+  // Error handler for reverting optimistic updates
+  const handleUpvoteError = (replyId: string, originalStats: ReplyStats) => {
+    // Revert optimistic updates if server call fails
+    setReplyStats((prev) => ({
+      ...prev,
+      [replyId]: originalStats,
+    }));
+    setUserUpvotes((prev: Set<string>) => {
+      const newSet = new Set(prev);
+      newSet.delete(replyId);
+      return newSet;
+    });
+  };
 
   // Get token balance - only if we have both coinAddress and account
   const tokenContract =
@@ -273,9 +316,6 @@ function UpvoteDialog({
         })
       : undefined;
 
-  // Fix the useReadContract call - use conditional execution instead of undefined
-  const shouldFetchBalance = !!(tokenContract && account?.address);
-
   const { data: tokenBalance } = useReadContract(
     tokenContract && account?.address
       ? {
@@ -284,7 +324,6 @@ function UpvoteDialog({
           params: [account.address],
         }
       : {
-          // Provide a dummy contract and params when disabled
           contract: getContract({
             client,
             chain: baseSepolia,
@@ -292,24 +331,38 @@ function UpvoteDialog({
           }),
           method: 'function balanceOf(address) view returns (uint256)',
           params: ['0x0000000000000000000000000000000000000000'],
-          // Correctly disable the query
           queryOptions: { enabled: false },
         }
   );
 
   useEffect(() => {
     if (tokenBalance) {
-      // Convert from wei to token units (assuming 18 decimals) and format to 2 decimal places
       const balanceInTokens = Number(tokenBalance) / Math.pow(10, 18);
       setBalance(balanceInTokens.toFixed(2));
     }
   }, [tokenBalance]);
 
+  // Store original stats when dialog opens
+  useEffect(() => {
+    if (isOpen && replyId) {
+      const currentStats = replyStats[replyId] || { upvotes: 0, totalStaked: 0 };
+      setOriginalStats(currentStats);
+    }
+  }, [isOpen, replyId, replyStats]);
+
   const handleUpvoteOnly = async () => {
-    if (!replyId) return;
+    if (!replyId || !originalStats) return;
 
     setIsProcessing(true);
     setCurrentStep('Initiating upvote');
+
+    // Optimistically update upvote count
+    updateReplyStatsOptimistically(replyId, {
+      upvotes: originalStats.upvotes + 1,
+    });
+
+    // Mark as upvoted by user optimistically
+    setUserUpvotes((prev: Set<string>) => new Set([...prev, replyId]));
 
     try {
       const response = await fetch(`/api/request-replies/${replyId}/upvote`, {
@@ -333,20 +386,43 @@ function UpvoteDialog({
       }, 1000);
     } catch (error) {
       console.error('Upvote failed:', error);
+
+      // Revert optimistic updates on any error
+      handleUpvoteError(replyId, originalStats);
+
       setIsProcessing(false);
       setCurrentStep('');
     }
   };
 
   const handleStakeUpvote = async () => {
-    if (!replyId || !requestId || !novel?.novelAddress || !novel?.coinAddress || !account) return;
+    if (
+      !replyId ||
+      !requestId ||
+      !novel?.novelAddress ||
+      !novel?.coinAddress ||
+      !account ||
+      !originalStats
+    )
+      return;
 
     const stakeAmountWei = BigInt(Math.floor(parseFloat(stakeAmount) * Math.pow(10, 18)));
+    const stakeAmountFloat = parseFloat(stakeAmount);
 
     setIsProcessing(true);
+    setProgressStep(0); // Start progress bar
+
+    // Optimistically update both upvote count and staked amount
+    updateReplyStatsOptimistically(replyId, {
+      upvotes: originalStats.upvotes + 1,
+      totalStaked: originalStats.totalStaked + stakeAmountFloat,
+    });
+
+    // Mark as upvoted by user optimistically
+    setUserUpvotes((prev: Set<string>) => new Set([...prev, replyId]));
 
     try {
-      setCurrentStep('Initiating|...');
+      setCurrentStep('Initiating');
 
       // Get the token contract for approval
       const tokenContract = getContract({
@@ -362,6 +438,7 @@ function UpvoteDialog({
         address: novel.novelAddress as `0x${string}`,
       });
 
+      setProgressStep(0); // Step 1: Transferring token
       setCurrentStep('Step 1/3|Transferring token');
 
       // First approve the novel contract to spend tokens
@@ -376,22 +453,20 @@ function UpvoteDialog({
         account,
       });
 
+      setProgressStep(1); // Step 2: Staking token
       setCurrentStep('Step 2/3|Staking token');
 
-      // Convert requestId to bytes32 for bountyId (this must match how bounty was created)
+      // Convert requestId to bytes32 for bountyId
       const bountyIdBytes32 = keccak256(stringToBytes(requestId, { size: 32 }));
-      //   const bountyIdHex = bytesToHex(bountyIdBytes);
 
       // Convert replyId to bytes32 for submissionId
       const submissionIdBytes32 = keccak256(stringToBytes(replyId, { size: 32 }));
-      //   const submissionIdHex = bytesToHex(submissionIdBytes);
 
       // Stake the tokens with correct parameter types
       const transaction = prepareContractCall({
         contract: novelContract,
         method:
           'function stakeOnRequestBounty(bytes32 _bountyId, bytes32 _submissionId, uint256 _bountyStakedAmount)',
-        // params: [bountyIdBytes32 as `0x${string}`, submissionIdHex as `0x${string}`, stakeAmountWei],
         params: [bountyIdBytes32, submissionIdBytes32, stakeAmountWei],
       });
 
@@ -401,10 +476,11 @@ function UpvoteDialog({
         account,
       });
 
+      setProgressStep(2); // Step 3: Finalising upvote with staking
       setCurrentStep('Step 3/3|Finalising upvote with staking');
 
-      // Update database
-      await fetch(`/api/request-replies/${replyId}/stake`, {
+      // Update database - this can fail even if blockchain transaction succeeds
+      const dbResponse = await fetch(`/api/request-replies/${replyId}/stake`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -414,17 +490,29 @@ function UpvoteDialog({
         }),
       });
 
+      if (!dbResponse.ok) {
+        const errorData = await dbResponse.json();
+        console.error('Database update failed:', errorData);
+        throw new Error(`Failed to update database: ${errorData.error || 'Unknown error'}`);
+      }
+
       setTimeout(() => {
         onSuccess();
         onClose();
         setIsProcessing(false);
         setCurrentStep('');
+        setProgressStep(undefined);
         setStakeAmount('');
       }, 1000);
     } catch (error) {
       console.error('Stake failed:', error);
+
+      // Revert optimistic updates on any error (blockchain or database)
+      handleUpvoteError(replyId, originalStats);
+
       setIsProcessing(false);
       setCurrentStep('');
+      setProgressStep(undefined);
     }
   };
 
@@ -439,24 +527,68 @@ function UpvoteDialog({
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-green-900/20 backdrop-blur-sm">
       <div className="mx-4 w-full max-w-md rounded-lg bg-white p-6 shadow-xl">
         <div className="mb-4">
-          <h3 className="text-lg font-semibold text-green-800">Upvote Reply</h3>
+          <h3 className="text-lg font-semibold text-green-500">Upvote Reply</h3>
         </div>
 
         {isProcessing ? (
-          <div className="py-8 text-center">
-            <Loader2 className="mx-auto mb-4 h-8 w-8 animate-spin text-green-600" />
-            {currentStep && (
-              <div className="space-y-2">
-                {currentStep.includes('|') ? (
-                  <>
-                    <h4 className="text-lg font-semibold text-green-800">
-                      {currentStep.split('|')[0]}
-                    </h4>
-                    <p className="text-green-700">{currentStep.split('|')[1]}</p>
-                  </>
-                ) : (
-                  <p className="text-green-700">{currentStep}</p>
-                )}
+          <div className="text-center">
+            {selectedOption === 'stake' && progressStep !== undefined ? (
+              <div className="mb-6">
+                <div className="flex items-center justify-between">
+                  {progressSteps.map((stepTitle, index) => (
+                    <div key={index} className="flex items-center">
+                      <div className="flex flex-col items-center">
+                        <div
+                          className={`flex h-8 w-8 items-center justify-center rounded-full ${
+                            index < progressStep
+                              ? 'bg-gradient-to-br from-green-400 to-green-600 text-white'
+                              : index === progressStep
+                                ? 'bg-gradient-to-br from-green-400 to-green-600 text-white'
+                                : 'bg-gradient-to-br from-gray-400 to-gray-600 text-white'
+                          }`}
+                        >
+                          {index < progressStep ? (
+                            <svg className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                              <path
+                                fillRule="evenodd"
+                                d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                                clipRule="evenodd"
+                              />
+                            </svg>
+                          ) : index === progressStep ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <span className="text-xs font-medium text-white">{index + 1}</span>
+                          )}
+                        </div>
+                        <span
+                          className={`mt-1 max-w-[60px] text-center text-xs font-medium ${
+                            index < progressStep
+                              ? 'text-green-600'
+                              : index === progressStep
+                                ? 'text-green-600'
+                                : 'text-gray-500'
+                          }`}
+                        >
+                          {stepTitle}
+                        </span>
+                      </div>
+                      {index < progressSteps.length - 1 && (
+                        <div
+                          className={`ml-4 h-0.5 w-16 ${
+                            index < progressStep ? 'bg-green-300' : 'bg-gray-300'
+                          }`}
+                        />
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              /* Simple spinner for upvote-only */
+              <div className="py-2">
+                <Loader2 className="mx-auto h-8 w-8 animate-spin text-green-600" />
+                <p className="mt-3 text-sm text-green-700">Processing upvote...</p>
               </div>
             )}
           </div>
@@ -489,21 +621,28 @@ function UpvoteDialog({
             </div>
 
             {selectedOption === 'stake' && (
-              <div className="space-y-3 rounded-lg bg-green-50 p-3">
-                <div className="flex items-center text-sm text-green-700">
-                  <Wallet className="mr-2 h-4 w-4" />
-                  Balance: {balance} {novel?.coinSymbol || 'TOKEN'}
+              <div className="space-y-3">
+                {/* Token Balance Display - Updated to match RequestDialog style */}
+                <div className="flex items-center space-x-2 rounded-lg bg-gray-50 p-3">
+                  <Wallet className="h-5 w-5 text-gray-700" />
+                  <span className="text-sm font-medium text-gray-700">Wallet Balance:</span>
+                  <span className="text-sm font-medium text-gray-700">
+                    {balance} {novel?.coinSymbol || 'TOKEN'} tokens
+                  </span>
                 </div>
+
+                {/* Stake Amount Input - Updated styling */}
                 <input
                   type="number"
                   value={stakeAmount}
                   onChange={(e) => setStakeAmount(e.target.value)}
-                  placeholder="Enter amount to stake"
-                  className="w-full rounded border border-green-300 p-2 text-gray-900 placeholder-gray-500 focus:ring-2 focus:ring-green-500 focus:outline-none"
+                  placeholder={`Number of ${novel?.coinSymbol || 'TOKEN'} tokens`}
+                  className="w-full rounded-lg border border-gray-300 p-3 text-sm text-gray-900 placeholder-gray-500 focus:border-green-500 focus:ring-2 focus:ring-green-200 focus:outline-none disabled:cursor-not-allowed disabled:bg-gray-50"
                   step="0.01"
                   min="0"
                   max={balance}
                 />
+
                 {stakeAmount && !isValidStakeAmount() && (
                   <p className="text-sm text-red-600">
                     {parseFloat(stakeAmount) > parseFloat(balance)
@@ -563,6 +702,7 @@ export default function RequestsSidebar({
   // Add missing state variables
   const [replyStats, setReplyStats] = useState<Record<string, ReplyStats>>({});
   const [userUpvotes, setUserUpvotes] = useState<Set<string>>(new Set());
+  const [isLoadingUpvotes, setIsLoadingUpvotes] = useState(false);
 
   // Add missing refs
   const replyFormRef = useRef<HTMLDivElement>(null);
@@ -572,6 +712,9 @@ export default function RequestsSidebar({
   // Use external replyingTo if provided, otherwise use internal
   const replyingTo = externalReplyingTo !== undefined ? externalReplyingTo : internalReplyingTo;
   const setReplyingTo = externalSetReplyingTo || setInternalReplyingTo;
+
+  // Check if current user is the author
+  const isAuthor = session?.user?.id === novel?.author?.id;
 
   const handleUpvoteClick = (replyId: string, requestId: string) => {
     // Don't open dialog if user already upvoted
@@ -598,17 +741,25 @@ export default function RequestsSidebar({
   };
 
   const handleUpvoteSuccess = () => {
-    // Refresh reply stats
+    // The optimistic updates are already done in the dialog
+    // This function is called when everything succeeds
     if (selectedReplyId) {
-      fetch(`/api/request-replies/${selectedReplyId}/stats`)
-        .then((response) => response.json())
-        .then((stats) => {
-          setReplyStats((prev) => ({ ...prev, [selectedReplyId]: stats }));
-          // Add the reply to user upvotes
-          setUserUpvotes((prev) => new Set([...prev, selectedReplyId]));
-        })
-        .catch((error) => console.error('Failed to refresh stats:', error));
+      setUserUpvotes((prev) => new Set([...prev, selectedReplyId]));
     }
+  };
+
+  // Add a new error handler for reverting optimistic updates
+  const handleUpvoteError = (replyId: string, originalStats: ReplyStats) => {
+    // Revert optimistic updates if server call fails
+    setReplyStats((prev) => ({
+      ...prev,
+      [replyId]: originalStats,
+    }));
+    setUserUpvotes((prev) => {
+      const newSet = new Set(prev);
+      newSet.delete(replyId);
+      return newSet;
+    });
   };
 
   const handleAwardSuccess = () => {
@@ -670,40 +821,43 @@ export default function RequestsSidebar({
   const handleReplySubmit = async (requestId: string) => {
     if (!replyContent.trim() || !session?.user?.id) return;
 
-    setSubmittingReply(true);
+    // Store the content and immediately clear UI
+    const originalContent = replyContent;
+    setReplyContent(''); // Clear input immediately
+    setReplyingTo(null); // Hide reply form immediately
 
     // If external onReply is provided, use it
     if (onReply) {
       try {
-        await onReply(requestId, replyContent);
-        setReplyContent('');
-        setReplyingTo(null);
+        await onReply(requestId, originalContent);
       } catch (error) {
         console.error('Error submitting reply:', error);
-      } finally {
-        setSubmittingReply(false);
+        // Show error message and revert on error
+        alert('Failed to send reply. Please try again.');
+        setReplyContent(originalContent);
+        setReplyingTo(requestId);
       }
       return;
     }
 
     // Otherwise, use internal logic
-    // Create optimistic reply
+    // Create optimistic reply that looks like a real reply (no isOptimistic flag)
     const optimisticReply: RequestReply = {
       id: `temp-${Date.now()}`,
-      content: replyContent,
+      content: originalContent,
       createdAt: new Date().toISOString(),
       user: {
         id: session.user.id,
         name: session.user.name || undefined,
         email: session.user.email || undefined,
       },
-      isOptimistic: true,
+      // No isOptimistic flag - reply appears normal immediately
     };
 
-    // Update UI optimistically
+    // Update UI optimistically - reply appears instantly as if it succeeded
     const updatedRequests = requests.map((request) =>
       request.id === requestId
-        ? { ...request, replies: [...request.replies, optimisticReply] }
+        ? { ...request, replies: [...(request.replies || []), optimisticReply] }
         : request
     );
     onRequestsUpdate(updatedRequests);
@@ -716,7 +870,7 @@ export default function RequestsSidebar({
         },
         body: JSON.stringify({
           requestId,
-          content: replyContent,
+          content: originalContent,
         }),
       });
 
@@ -726,35 +880,36 @@ export default function RequestsSidebar({
 
       const newReply = await response.json();
 
-      // Replace optimistic reply with real reply
+      // Replace optimistic reply with real reply (same content, but real ID)
       const finalRequests = requests.map((request) =>
         request.id === requestId
           ? {
               ...request,
-              replies: request.replies
+              replies: (request.replies || [])
                 .filter((reply) => reply.id !== optimisticReply.id)
                 .concat(newReply),
             }
           : request
       );
       onRequestsUpdate(finalRequests);
-
-      setReplyContent('');
-      setReplyingTo(null);
     } catch (error) {
       console.error('Error submitting reply:', error);
+
       // Remove optimistic reply on error
       const revertedRequests = requests.map((request) =>
         request.id === requestId
           ? {
               ...request,
-              replies: request.replies.filter((reply) => reply.id !== optimisticReply.id),
+              replies: (request.replies || []).filter((reply) => reply.id !== optimisticReply.id),
             }
           : request
       );
       onRequestsUpdate(revertedRequests);
-    } finally {
-      setSubmittingReply(false);
+
+      // Show error message and restore the reply form
+      alert('Failed to send reply. Please try again.');
+      setReplyContent(originalContent);
+      setReplyingTo(requestId);
     }
   };
 
@@ -777,7 +932,7 @@ export default function RequestsSidebar({
     }
   }, [scrollToRequestId]);
 
-  // Fetch reply stats and user upvotes when requests change
+  // FIXED: Enhanced fetch reply data with better error handling and loading states
   useEffect(() => {
     const fetchReplyData = async () => {
       if (!session?.user?.id || requests.length === 0) return;
@@ -789,47 +944,83 @@ export default function RequestsSidebar({
       // Filter out temporary IDs before making API calls
       const validReplyIds = allReplyIds.filter((id) => !id.startsWith('temp-'));
 
-      // Fetch stats for all valid replies
-      const statsPromises = validReplyIds.map(async (replyId) => {
-        try {
-          const response = await fetch(`/api/request-replies/${replyId}/stats`);
-          if (response.ok) {
-            const stats = await response.json();
-            return { replyId, stats };
+      if (validReplyIds.length === 0) return;
+
+      setIsLoadingUpvotes(true);
+
+      try {
+        // Fetch stats for all valid replies
+        const statsPromises = validReplyIds.map(async (replyId) => {
+          try {
+            const response = await fetch(`/api/request-replies/${replyId}/stats`);
+            if (response.ok) {
+              const stats = await response.json();
+              return { replyId, stats };
+            }
+          } catch (error) {
+            console.error(`Failed to fetch stats for reply ${replyId}:`, error);
           }
-        } catch (error) {
-          console.error(`Failed to fetch stats for reply ${replyId}:`, error);
-        }
-        return null;
-      });
+          return null;
+        });
 
-      const statsResults = await Promise.all(statsPromises);
-      const newStats: Record<string, ReplyStats> = {};
-      statsResults.forEach((result) => {
-        if (result) {
-          newStats[result.replyId] = result.stats;
-        }
-      });
-      setReplyStats(newStats);
+        const statsResults = await Promise.all(statsPromises);
+        const newStats: Record<string, ReplyStats> = {};
+        statsResults.forEach((result) => {
+          if (result) {
+            newStats[result.replyId] = result.stats;
+          }
+        });
+        setReplyStats(newStats);
 
-      // Fetch user upvotes only for valid IDs
-      if (validReplyIds.length > 0) {
+        // FIXED: Enhanced upvote fetching with better error handling
         try {
           const upvoteResponse = await fetch(
             `/api/user/upvotes?replyIds=${validReplyIds.join(',')}`
           );
           if (upvoteResponse.ok) {
             const upvotedReplyIds = await upvoteResponse.json();
+            console.log('Fetched upvoted reply IDs:', upvotedReplyIds); // Debug log
             setUserUpvotes(new Set(upvotedReplyIds));
+          } else {
+            console.error('Failed to fetch upvotes, status:', upvoteResponse.status);
+            const errorText = await upvoteResponse.text();
+            console.error('Upvote fetch error:', errorText);
           }
         } catch (error) {
           console.error('Failed to fetch user upvotes:', error);
         }
+      } catch (error) {
+        console.error('Failed to fetch reply data:', error);
+      } finally {
+        setIsLoadingUpvotes(false);
       }
     };
 
     fetchReplyData();
   }, [requests, session?.user?.id]);
+
+  // FIXED: Add a separate effect to persist upvotes in localStorage as backup
+  useEffect(() => {
+    if (session?.user?.id && userUpvotes.size > 0) {
+      const upvotesArray = Array.from(userUpvotes);
+      localStorage.setItem(`userUpvotes_${session.user.id}`, JSON.stringify(upvotesArray));
+    }
+  }, [userUpvotes, session?.user?.id]);
+
+  // FIXED: Load upvotes from localStorage on mount as fallback
+  useEffect(() => {
+    if (session?.user?.id) {
+      try {
+        const savedUpvotes = localStorage.getItem(`userUpvotes_${session.user.id}`);
+        if (savedUpvotes) {
+          const upvotesArray = JSON.parse(savedUpvotes);
+          setUserUpvotes(new Set(upvotesArray));
+        }
+      } catch (error) {
+        console.error('Failed to load upvotes from localStorage:', error);
+      }
+    }
+  }, [session?.user?.id]);
 
   // Handle visibility
   if (!isVisible) {
@@ -856,7 +1047,7 @@ export default function RequestsSidebar({
             {onClose && (
               <button
                 onClick={onClose}
-                className="rounded-full p-1 transition-colors duration-200 hover:bg-white/20"
+                className="rounded-lg p-1 transition-colors duration-200 hover:bg-green-500"
               >
                 <X className="h-5 w-5" />
               </button>
@@ -879,322 +1070,338 @@ export default function RequestsSidebar({
   }
 
   return (
-    <div
-      className="fixed right-0 z-30 flex w-96 flex-col border-l border-gray-200 bg-gradient-to-b from-white to-gray-50 shadow-2xl"
-      style={{
-        top: '152px',
-        height: 'calc(100vh - 152px)',
-        backdropFilter: 'blur(10px)',
-      }}
-    >
-      {/* Header with close button - Fixed at top */}
-      <div className="flex-shrink-0 bg-gradient-to-r from-green-600 to-green-700 p-4 text-white shadow-lg">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-2">
-            <MessageCircleQuestion className="h-5 w-5" />
-            <h3 className="text-lg font-semibold">Requests</h3>
-            <span className="rounded-full bg-white/20 px-2 py-0.5 text-sm font-medium">
-              {requests.length}
-            </span>
+    <>
+      <div
+        className="fixed right-0 z-30 flex w-96 flex-col border-l border-gray-200 bg-gradient-to-b from-white to-gray-50 shadow-2xl"
+        style={{
+          top: '152px',
+          height: 'calc(100vh - 152px)',
+          backdropFilter: 'blur(10px)',
+        }}
+      >
+        {/* Header with close button - Fixed at top */}
+        <div className="flex-shrink-0 bg-gradient-to-r from-green-600 to-green-700 p-4 text-white shadow-lg">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-2">
+              <MessageCircleQuestion className="h-5 w-5" />
+              <h3 className="text-lg font-semibold">Requests</h3>
+            </div>
+            {onClose && (
+              <button
+                onClick={onClose}
+                className="rounded-lg p-1 transition-colors duration-200 hover:bg-green-500"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            )}
           </div>
-          {onClose && (
-            <button
-              onClick={onClose}
-              className="rounded-full p-1 transition-colors duration-200 hover:bg-white/20"
-            >
-              <X className="h-5 w-5" />
-            </button>
-          )}
         </div>
-      </div>
 
-      {/* Requests content - Scrollable area */}
-      <div ref={scrollContainerRef} className="flex-1 overflow-y-auto">
-        <div className="p-6 pb-20">
-          <div className="space-y-6">
-            {requests.map((request) => {
-              const requestDateTime = formatDateTime(request.createdAt);
-              return (
-                <div
-                  key={request.id}
-                  className="group"
-                  ref={(el) => {
-                    requestRefs.current[request.id] = el;
-                  }}
-                >
-                  <div className="overflow-hidden rounded-xl border border-gray-100 bg-white shadow-sm transition-all duration-200 hover:shadow-md">
-                    {/* Highlighted text reference */}
-                    <div className="border-b border-green-100 bg-white px-4 py-3">
-                      <p className="mb-1 text-xs font-medium text-green-700">Referenced text:</p>
-                      <div className="text-sm leading-relaxed italic">
-                        <span
-                          className="highlighted-request-text"
-                          style={{
-                            backgroundColor: 'rgb(220 252 231)',
-                            color: 'rgb(22 101 52)',
-                            padding: '2px 4px',
-                            borderRadius: '4px',
-                          }}
-                        >
+        {/* Scrollable content area */}
+        <div className="flex-1 overflow-hidden">
+          <div ref={scrollContainerRef} className="h-full overflow-y-auto">
+            {requests.length === 0 ? (
+              <div className="flex h-full items-center justify-center p-8">
+                <div className="text-center">
+                  <MessageCircleQuestion className="mx-auto mb-4 h-12 w-12 text-gray-400" />
+                  <p className="text-lg font-medium text-gray-600">No requests yet</p>
+                  <p className="text-sm text-gray-500">
+                    Be the first to create a request for feedback!
+                  </p>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-6 p-6">
+                {requests.map((request, index) => {
+                  const requestDateTime = formatDateTime(request.createdAt);
+
+                  return (
+                    <div
+                      key={request.id}
+                      ref={(el) => {
+                        if (el) {
+                          requestRefs.current[request.id] = el;
+                        }
+                      }}
+                      className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm transition-shadow duration-200 hover:shadow-md"
+                    >
+                      {/* Highlighted text */}
+                      <div className="mb-3 rounded-lg bg-green-50 p-3">
+                        <p className="text-sm font-medium text-green-800">
                           "{request.highlightedText}"
-                        </span>
+                        </p>
                       </div>
-                    </div>
 
-                    {/* Request content */}
-                    <div className="p-4">
-                      <p className="mb-3 leading-relaxed text-gray-800">{request.content}</p>
+                      {/* Request content */}
+                      <p className="mb-3 text-gray-800">{request.content}</p>
 
-                      {/* Bounty and Stakers Reward */}
-                      <div className="mb-4 flex items-center space-x-4 rounded-lg bg-green-50 p-3">
-                        <div className="flex-1 flex-col space-y-1">
-                          <div className="flex items-center space-x-1.5">
-                            <CircleDollarSign className="h-4 w-4 text-green-600" />
-                            <span className="text-sm font-medium text-green-800"> Bounty</span>
+                      {/* Bounty information */}
+                      <div className="mb-3 rounded-lg bg-green-50 p-3">
+                        <div className="grid grid-cols-2 gap-3">
+                          <div>
+                            <div className="flex items-center space-x-1">
+                              <CircleDollarSign className="h-4 w-4 text-green-600" />
+                              <span className="text-sm font-medium text-green-800">Bounty</span>
+                            </div>
+                            <div className="text-sm text-green-700">
+                              {request.bountyAmount} {novel?.coinSymbol || 'tokens'}
+                            </div>
                           </div>
-                          <div className="text-sm font-semibold text-green-800">
-                            {request.bountyAmount} {novel?.coinSymbol || 'TOKEN'}
+                          <div>
+                            <div className="flex items-center space-x-1">
+                              <CircleDollarSign className="h-4 w-4 text-green-600" />
+                              <span className="text-sm font-medium text-green-800">
+                                Staking Reward
+                              </span>
+                            </div>
+                            <div className="text-sm text-green-700">
+                              {request.stakersReward} {novel?.coinSymbol || 'tokens'}
+                            </div>
                           </div>
                         </div>
-                        <div className="flex-1 flex-col space-y-1">
-                          <div className="flex items-center space-x-1.5">
-                            <CircleDollarSign className="h-4 w-4 text-green-600" />
-                            <span className="text-sm font-medium text-green-800">
-                              Staking Reward
+
+                        {/* Awarded label with darker green background - only shown when request is awarded */}
+                        {request.isAwarded && (
+                          <div className="mt-3">
+                            <div className="inline-flex items-center space-x-1 rounded-lg bg-green-200 px-2 py-1">
+                              <CircleCheckBig className="h-4 w-4 text-green-700" />
+                              <span className="text-sm font-medium text-green-700">Awarded</span>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Request metadata and actions */}
+                      <div className="space-y-3">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center space-x-2">
+                            <div className="flex h-6 w-6 items-center justify-center rounded-full bg-gradient-to-br from-green-500 to-green-700 text-sm text-white">
+                              {(request.user.name || request.user.email || 'A')[0].toUpperCase()}
+                            </div>
+                            <span className="text-sm text-gray-600">
+                              {request.user.name || request.user.email}
+                              {novel && request.user.id === novel.author.id && (
+                                <span className="ml-2 inline-flex items-center rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-800">
+                                  Author
+                                </span>
+                              )}
                             </span>
                           </div>
-                          <div className="text-sm font-semibold text-green-800">
-                            {request.stakersReward} {novel?.coinSymbol || 'TOKEN'}
+                          <div className="text-right">
+                            <div className="text-sm text-gray-500">{requestDateTime.date}</div>
+                            <div className="text-xs text-gray-400">{requestDateTime.time}</div>
                           </div>
                         </div>
-                      </div>
 
-                      {/* Request metadata */}
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center space-x-2">
-                          <div className="flex h-6 w-6 items-center justify-center rounded-full bg-gradient-to-br from-green-400 to-green-600 text-xs font-semibold text-white">
-                            {(request.user.name || request.user.email || 'A')[0].toUpperCase()}
-                          </div>
-                          <span className="text-sm text-gray-600">
-                            {request.user.name || request.user.email}
-                            {novel && request.user.id === novel.author.id && (
-                              <span className="ml-2 inline-flex items-center rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-800">
-                                Author
-                              </span>
-                            )}
-                          </span>
-                        </div>
-                        <div className="text-right">
-                          <div className="text-xs text-gray-500">{requestDateTime.date}</div>
-                          <div className="text-xs text-gray-400">{requestDateTime.time}</div>
-                        </div>
-                      </div>
-
-                      {/* Reply button */}
-                      <div className="mt-3 flex justify-end">
-                        <button
-                          onClick={() => {
-                            setReplyingTo(request.id);
-                            setReplyContent('');
-                          }}
-                          className="flex items-center space-x-1 rounded-lg px-2 py-1 text-sm text-green-600 transition-all duration-200 hover:bg-green-50 hover:text-green-800"
-                          disabled={submittingReply}
-                        >
-                          <Reply className="h-4 w-4" />
-                          <span>Reply</span>
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Replies Section */}
-                  <div className="mt-4 space-y-3 border-t border-gray-200 pt-4">
-                    {(request.replies || []).map((reply) => {
-                      const replyDateTime = formatDateTime(reply.createdAt);
-                      const stats = replyStats[reply.id] || { upvotes: 0, totalStaked: 0 };
-                      const isWinningReply = request.winningReplyId === reply.id;
-                      const isAuthor = novel && session?.user?.id === novel.author.id;
-                      const canAward = isAuthor && !request.isAwarded && reply.user.walletAddress;
-
-                      return (
-                        <div
-                          key={reply.id}
-                          className={`rounded-lg border-l-4 ${isWinningReply ? 'border-yellow-400 bg-yellow-50' : 'border-green-200 bg-gray-50'} p-3 ${reply.isOptimistic ? 'animate-pulse opacity-70' : ''}`}
-                        >
-                          <div className="mb-2 flex items-start justify-between">
-                            <p className="flex-1 text-sm text-gray-800">{reply.content}</p>
-                            {isWinningReply && (
-                              <div className="ml-2 flex flex-shrink-0 items-center space-x-1">
-                                <div className="flex items-center space-x-1 rounded-full bg-yellow-100 px-2 py-1">
-                                  <Crown className="h-3 w-3 text-yellow-600" />
-                                  <span className="text-xs font-medium text-yellow-800">
-                                    Awarded
-                                  </span>
-                                </div>
-                              </div>
-                            )}
-                          </div>
-
-                          <div className="flex items-center justify-between">
-                            {/* Reply actions */}
-                            <div className="mt-3 flex flex-col space-y-2">
-                              {/* Upvotes and Vote button */}
-                              <div className="flex items-center space-x-4 text-xs text-gray-500">
-                                <div className="flex items-center space-x-1">
-                                  <ThumbsUp className="h-3 w-3" />
-                                  <span>
-                                    {reply.id.startsWith('temp-')
-                                      ? 0
-                                      : replyStats[reply.id]?.upvotes || 0}{' '}
-                                  </span>
-                                </div>
-
-                                {request.isAwarded ? (
-                                  <div className="flex items-center space-x-1.5 rounded-full px-3 py-1.5 text-xs font-semibold text-slate-600">
-                                    <TimerOff className="h-3 w-3 text-slate-500" strokeWidth={4} />
-                                    <span>Voting Closed</span>
-                                  </div>
-                                ) : (
-                                  <button
-                                    onClick={() => handleUpvoteClick(reply.id, request.id)}
-                                    disabled={
-                                      userUpvotes.has(reply.id) || reply.id.startsWith('temp-')
-                                    }
-                                    className={`flex items-center space-x-1 rounded-md border px-3 py-1.5 text-xs font-medium transition-all duration-200 ${
-                                      userUpvotes.has(reply.id) || reply.id.startsWith('temp-')
-                                        ? 'cursor-not-allowed border-green-200 bg-green-100 text-green-700'
-                                        : 'border-gray-300 bg-white text-gray-700 shadow-sm hover:border-green-400 hover:bg-green-50 hover:text-green-700 hover:shadow-md active:scale-95'
-                                    }`}
-                                  >
-                                    <ThumbsUp
-                                      className={`h-3 w-3 ${
-                                        userUpvotes.has(reply.id) ? 'fill-current' : ''
-                                      }`}
-                                    />
-                                    <span>
-                                      {reply.id.startsWith('temp-')
-                                        ? 'Sending...'
-                                        : userUpvotes.has(reply.id)
-                                          ? 'Voted'
-                                          : 'Upvote'}
-                                    </span>
-                                  </button>
-                                )}
-                              </div>
-
-                              {/* Display staked tokens below */}
-                              {!reply.id.startsWith('temp-') &&
-                                replyStats[reply.id]?.totalStaked > 0 && (
-                                  <div className="flex items-center space-x-1 text-xs text-gray-500">
-                                    <CircleDollarSign className="h-3 w-3" />
-                                    <span>
-                                      {Number(replyStats[reply.id]?.totalStaked || 0).toFixed(2)}{' '}
-                                      {novel?.coinSymbol || 'tokens'} staked
-                                    </span>
-                                  </div>
-                                )}
-
-                              {/* Award button for novel author */}
-                              {canAward && !reply.id.startsWith('temp-') && (
-                                <button
-                                  onClick={() =>
-                                    handleAwardClick(
-                                      reply.id,
-                                      request.id,
-                                      reply.user.walletAddress!,
-                                      reply.user.id
-                                    )
-                                  }
-                                  className="flex items-center space-x-1 rounded bg-green-600 px-2 py-1 text-xs text-white transition-colors hover:bg-green-700"
-                                >
-                                  <HandCoins className="h-3 w-3" />
-                                  <span>Award</span>
-                                </button>
-                              )}
-                            </div>
-
-                            {/* Reply author and timestamp */}
-                            <div className="flex items-center space-x-2">
-                              <div className="flex h-5 w-5 items-center justify-center rounded-full bg-gradient-to-br from-gray-400 to-gray-600 text-xs text-white">
-                                {(reply.user.name || reply.user.email || 'A')[0].toUpperCase()}
-                              </div>
-                              <div>
-                                <span className="text-xs font-medium text-gray-600">
-                                  {reply.user.name || reply.user.email}
-                                  {novel && reply.user.id === novel.author.id && (
-                                    <span className="ml-1.5 inline-flex items-center rounded-full bg-green-100 px-1.5 py-0.5 text-xs font-medium text-green-800">
-                                      Author
-                                    </span>
-                                  )}
-                                </span>
-                                <div className="text-xs text-gray-400">
-                                  {replyDateTime.date}, {replyDateTime.time}
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-
-                  {/* Reply form */}
-                  {replyingTo === request.id && (
-                    <div
-                      ref={replyFormRef}
-                      className="mt-4 rounded-lg border border-gray-200 bg-white p-4 shadow-sm"
-                    >
-                      <div className="space-y-3">
-                        <textarea
-                          value={replyContent}
-                          onChange={(e) => setReplyContent(e.target.value)}
-                          placeholder="Write a thoughtful reply..."
-                          className="w-full resize-none rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder-gray-500 focus:border-green-500 focus:ring-2 focus:ring-green-200 focus:outline-none"
-                          rows={3}
-                          style={{ color: '#111827' }}
-                          autoFocus
-                          disabled={submittingReply}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
-                              e.preventDefault();
-                              handleReplySubmit(request.id);
-                            }
-                          }}
-                        />
                         <div className="flex items-center justify-between">
-                          <button
-                            onClick={() => {
-                              setReplyingTo(null);
-                              setReplyContent('');
-                            }}
-                            className="text-sm text-gray-500 transition-colors duration-200 hover:text-gray-700"
-                            disabled={submittingReply}
-                          >
-                            Cancel
-                          </button>
-                          <button
-                            onClick={() => handleReplySubmit(request.id)}
-                            className="flex items-center space-x-2 rounded-lg bg-green-600 px-4 py-2 text-sm text-white transition-all duration-200 hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-50"
-                            disabled={!replyContent.trim() || submittingReply}
-                          >
-                            {submittingReply ? (
-                              <Loader2 className="h-4 w-4 animate-spin" />
-                            ) : (
-                              <Send className="h-4 w-4" />
-                            )}
-                            <span>{submittingReply ? 'Sending...' : 'Reply'}</span>
-                          </button>
+                          <div className="flex items-center space-x-2">
+                            {/* REMOVED: The yellow awarded label that was here */}
+                          </div>
+                          <div className="flex items-center space-x-2">
+                            <button
+                              onClick={() => {
+                                setReplyingTo(request.id);
+                                setReplyContent('');
+                              }}
+                              className="flex items-center space-x-1 rounded-lg px-2 py-1 text-sm text-green-600 transition-all duration-200 hover:bg-green-50 hover:text-green-800"
+                              disabled={submittingReply}
+                            >
+                              <Reply className="h-4 w-4" />
+                              <span>Reply</span>
+                            </button>
+                          </div>
                         </div>
                       </div>
+
+                      {/* Replies */}
+                      {(request.replies || []).length > 0 && (
+                        <div className="mt-3 ml-6 space-y-3">
+                          {(request.replies || []).map((reply) => {
+                            const replyDateTime = formatDateTime(reply.createdAt);
+                            const stats = replyStats[reply.id] || { upvotes: 0, totalStaked: 0 };
+                            const hasUserUpvoted = userUpvotes.has(reply.id);
+                            const isWinningReply = request.winningReplyId === reply.id;
+
+                            return (
+                              <div
+                                key={reply.id}
+                                className="rounded-lg border-l-4 border-green-200 bg-gray-50 p-3"
+                              >
+                                <p className="mb-2 text-sm text-gray-800">{reply.content}</p>
+                                <div className="flex items-center justify-between">
+                                  <div className="flex items-center space-x-2">
+                                    <div className="flex h-4 w-4 items-center justify-center rounded-full bg-gradient-to-br from-gray-400 to-gray-600 text-xs text-white">
+                                      {(reply.user.name ||
+                                        reply.user.email ||
+                                        'A')[0].toUpperCase()}
+                                    </div>
+                                    <span className="text-xs text-gray-500">
+                                      {reply.user.name || reply.user.email}
+                                      {novel && reply.user.id === novel.author.id && (
+                                        <span className="ml-2 inline-flex items-center rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-800">
+                                          Author
+                                        </span>
+                                      )}
+                                    </span>
+                                  </div>
+                                  <div className="text-right">
+                                    <div className="text-xs text-gray-500">
+                                      {replyDateTime.date}
+                                    </div>
+                                    <div className="text-xs text-gray-400">
+                                      {replyDateTime.time}
+                                    </div>
+                                  </div>
+                                </div>
+
+                                {/* Reply actions */}
+                                {!reply.isOptimistic && (
+                                  <div className="mt-2">
+                                    <div className="flex flex-col items-start space-y-1">
+                                      {isWinningReply ? (
+                                        <div className="rounded-lg bg-yellow-50 px-2 py-1">
+                                          <div className="flex items-center space-x-1">
+                                            <Crown className="h-4 w-4 text-yellow-600" />
+                                            <span className="text-sm text-yellow-700">Awarded</span>
+                                          </div>
+                                        </div>
+                                      ) : (
+                                        <>
+                                          {/* FIXED: Show loading state while fetching upvotes */}
+                                          <button
+                                            onClick={() => handleUpvoteClick(reply.id, request.id)}
+                                            disabled={
+                                              hasUserUpvoted ||
+                                              request.isAwarded ||
+                                              isLoadingUpvotes
+                                            }
+                                            className={`flex items-center space-x-1 rounded-lg px-2 py-1 text-sm transition-all duration-200 ${
+                                              hasUserUpvoted
+                                                ? 'cursor-not-allowed text-green-400'
+                                                : request.isAwarded
+                                                  ? 'cursor-not-allowed text-gray-400'
+                                                  : isLoadingUpvotes
+                                                    ? 'cursor-wait text-gray-400'
+                                                    : 'text-green-600 hover:bg-green-50 hover:text-green-800'
+                                            }`}
+                                          >
+                                            <ThumbsUp className="h-4 w-4" />
+                                            <span>{stats.upvotes}</span>
+                                            {hasUserUpvoted && (
+                                              <>
+                                                <Check className="h-3 w-3" />
+                                                <span className="text-xs">Voted</span>
+                                              </>
+                                            )}
+                                            {/* REMOVED: The "Awarded" text that was showing on all replies */}
+                                            {isLoadingUpvotes && (
+                                              <Loader2 className="h-3 w-3 animate-spin" />
+                                            )}
+                                          </button>
+                                          {stats.totalStaked > 0 && (
+                                            <div className="flex items-center space-x-1 px-2 text-xs text-green-600">
+                                              <CircleDollarSign className="h-3 w-3" />
+                                              <span>{stats.totalStaked}</span>
+                                              <span>{novel?.coinSymbol || 'tokens'}</span>
+                                              <span>staked</span>
+                                            </div>
+                                          )}
+                                          {isAuthor &&
+                                            reply.user.walletAddress &&
+                                            !request.isAwarded && (
+                                              <button
+                                                onClick={() =>
+                                                  handleAwardClick(
+                                                    reply.id,
+                                                    request.id,
+                                                    reply.user.walletAddress!,
+                                                    reply.user.id
+                                                  )
+                                                }
+                                                className="flex items-center space-x-1 rounded-lg px-2 py-1 text-sm text-yellow-600 transition-all duration-200 hover:bg-yellow-50 hover:text-yellow-800"
+                                              >
+                                                <Crown className="h-4 w-4" />
+                                                <span>Award</span>
+                                              </button>
+                                            )}
+                                        </>
+                                      )}
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+
+                      {/* Reply form */}
+                      {replyingTo === request.id && (
+                        <div
+                          ref={replyFormRef}
+                          className="mt-4 ml-6 rounded-lg border border-gray-200 bg-white p-4 shadow-sm"
+                        >
+                          <div className="space-y-3">
+                            <textarea
+                              value={replyContent}
+                              onChange={(e) => setReplyContent(e.target.value)}
+                              placeholder="Write a thoughtful reply..."
+                              className="w-full resize-none rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder-gray-500 focus:border-green-500 focus:ring-2 focus:ring-green-200 focus:outline-none"
+                              rows={3}
+                              style={{ color: '#111827' }}
+                              autoFocus
+                              disabled={submittingReply}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+                                  e.preventDefault();
+                                  handleReplySubmit(request.id);
+                                }
+                              }}
+                            />
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center space-x-2">
+                                <button
+                                  onClick={() => {
+                                    setReplyingTo(null);
+                                    setReplyContent('');
+                                  }}
+                                  className="text-sm text-gray-500 transition-colors duration-200 hover:text-gray-700"
+                                  disabled={submittingReply}
+                                >
+                                  Cancel
+                                </button>
+                              </div>
+                              <button
+                                onClick={() => handleReplySubmit(request.id)}
+                                className="flex items-center space-x-2 rounded-lg bg-green-600 px-4 py-2 text-sm text-white transition-all duration-200 hover:bg-green-700 disabled:cursor-not-allowed disabled:opacity-50"
+                                disabled={!replyContent.trim() || submittingReply}
+                              >
+                                {submittingReply ? (
+                                  <Loader2 className="h-4 w-4 animate-spin" />
+                                ) : (
+                                  <Send className="h-4 w-4" />
+                                )}
+                                <span>{submittingReply ? 'Sending...' : 'Reply'}</span>
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Divider between requests */}
+                      {index < requests.length - 1 && (
+                        <div className="my-6 border-t border-gray-200"></div>
+                      )}
                     </div>
-                  )}
-                </div>
-              );
-            })}
+                  );
+                })}
+              </div>
+            )}
           </div>
         </div>
       </div>
 
+      {/* Upvote Dialog */}
       <UpvoteDialog
         isOpen={upvoteDialogOpen}
         onClose={() => setUpvoteDialogOpen(false)}
@@ -1202,8 +1409,13 @@ export default function RequestsSidebar({
         requestId={selectedRequestId}
         novel={novel}
         onSuccess={handleUpvoteSuccess}
+        replyStats={replyStats}
+        setReplyStats={setReplyStats}
+        userUpvotes={userUpvotes}
+        setUserUpvotes={setUserUpvotes}
       />
 
+      {/* Award Dialog */}
       <AwardDialog
         isOpen={awardDialogOpen}
         onClose={() => setAwardDialogOpen(false)}
@@ -1214,6 +1426,6 @@ export default function RequestsSidebar({
         winnerId={selectedWinnerId}
         onSuccess={handleAwardSuccess}
       />
-    </div>
+    </>
   );
 }

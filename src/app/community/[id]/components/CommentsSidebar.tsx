@@ -99,8 +99,12 @@ function UpvoteDialog({ isOpen, onClose, itemId, itemType, novel, onSuccess }: U
   const [stakeAmount, setStakeAmount] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
   const [currentStep, setCurrentStep] = useState('');
+  const [progressStep, setProgressStep] = useState<number | undefined>(undefined);
   const [balance, setBalance] = useState<string>('0');
   const account = useActiveAccount();
+
+  // Progress steps for staking (3 steps)
+  const progressSteps = ['Transferring token', 'Staking token', 'Finalising upvote'];
 
   // Get token balance
   const tokenContract =
@@ -178,9 +182,10 @@ function UpvoteDialog({ isOpen, onClose, itemId, itemType, novel, onSuccess }: U
     const stakeAmountWei = BigInt(Math.floor(parseFloat(stakeAmount) * Math.pow(10, 18)));
 
     setIsProcessing(true);
+    setProgressStep(0); // Start progress bar
 
     try {
-      setCurrentStep('Initiating|...');
+      setCurrentStep('Initiating');
 
       // Get the token contract for approval
       const tokenContract = getContract({
@@ -196,6 +201,7 @@ function UpvoteDialog({ isOpen, onClose, itemId, itemType, novel, onSuccess }: U
         address: novel.novelAddress as `0x${string}`,
       });
 
+      setProgressStep(0); // Step 1: Transferring token
       setCurrentStep('Step 1/3|Transferring token');
 
       // First approve the novel contract to spend tokens
@@ -210,6 +216,7 @@ function UpvoteDialog({ isOpen, onClose, itemId, itemType, novel, onSuccess }: U
         account,
       });
 
+      setProgressStep(1); // Step 2: Staking token
       setCurrentStep('Step 2/3|Staking token');
 
       // Convert itemId to bytes32 for _commentId
@@ -228,6 +235,7 @@ function UpvoteDialog({ isOpen, onClose, itemId, itemType, novel, onSuccess }: U
         account,
       });
 
+      setProgressStep(2); // Step 3: Finalising upvote with staking
       setCurrentStep('Step 3/3|Finalising upvote with staking');
 
       // Update database
@@ -247,12 +255,14 @@ function UpvoteDialog({ isOpen, onClose, itemId, itemType, novel, onSuccess }: U
         onClose();
         setIsProcessing(false);
         setCurrentStep('');
+        setProgressStep(undefined);
         setStakeAmount('');
       }, 1000);
     } catch (error) {
       console.error('Stake failed:', error);
       setIsProcessing(false);
       setCurrentStep('');
+      setProgressStep(undefined);
     }
   };
 
@@ -273,20 +283,64 @@ function UpvoteDialog({ isOpen, onClose, itemId, itemType, novel, onSuccess }: U
         </div>
 
         {isProcessing ? (
-          <div className="py-8 text-center">
-            <Loader2 className="mx-auto mb-4 h-8 w-8 animate-spin text-purple-600" />
-            {currentStep && (
-              <div className="space-y-2">
-                {currentStep.includes('|') ? (
-                  <>
-                    <h4 className="text-lg font-semibold text-purple-800">
-                      {currentStep.split('|')[0]}
-                    </h4>
-                    <p className="text-purple-700">{currentStep.split('|')[1]}</p>
-                  </>
-                ) : (
-                  <p className="text-purple-700">{currentStep}</p>
-                )}
+          <div className="text-center">
+            {selectedOption === 'stake' && progressStep !== undefined ? (
+              <div className="mb-6">
+                <div className="flex items-center justify-between">
+                  {progressSteps.map((stepTitle, index) => (
+                    <div key={index} className="flex items-center">
+                      <div className="flex flex-col items-center">
+                        <div
+                          className={`flex h-8 w-8 items-center justify-center rounded-full ${
+                            index < progressStep
+                              ? 'bg-gradient-to-br from-purple-400 to-purple-600 text-white'
+                              : index === progressStep
+                                ? 'bg-gradient-to-br from-purple-400 to-purple-600 text-white'
+                                : 'bg-gradient-to-br from-gray-400 to-gray-600 text-white'
+                          }`}
+                        >
+                          {index < progressStep ? (
+                            <svg className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                              <path
+                                fillRule="evenodd"
+                                d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                                clipRule="evenodd"
+                              />
+                            </svg>
+                          ) : index === progressStep ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <span className="text-xs font-medium text-white">{index + 1}</span>
+                          )}
+                        </div>
+                        <span
+                          className={`mt-1 max-w-[60px] text-center text-xs font-medium ${
+                            index < progressStep
+                              ? 'text-purple-600'
+                              : index === progressStep
+                                ? 'text-purple-600'
+                                : 'text-gray-500'
+                          }`}
+                        >
+                          {stepTitle}
+                        </span>
+                      </div>
+                      {index < progressSteps.length - 1 && (
+                        <div
+                          className={`mr-1 ml-3 h-0.5 w-16 ${
+                            index < progressStep ? 'bg-purple-300' : 'bg-gray-300'
+                          }`}
+                        />
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              /* Simple spinner for upvote-only */
+              <div className="py-2">
+                <Loader2 className="mx-auto h-8 w-8 animate-spin text-purple-600" />
+                <p className="mt-3 text-sm text-purple-700">Processing upvote...</p>
               </div>
             )}
           </div>
@@ -319,21 +373,28 @@ function UpvoteDialog({ isOpen, onClose, itemId, itemType, novel, onSuccess }: U
             </div>
 
             {selectedOption === 'stake' && (
-              <div className="space-y-3 rounded-lg bg-purple-50 p-3">
-                <div className="flex items-center text-sm text-purple-700">
-                  <Wallet className="mr-2 h-4 w-4" />
-                  Balance: {balance} {novel?.coinSymbol || 'TOKEN'}
+              <div className="space-y-3">
+                {/* Token Balance Display - Gray color scheme to match RequestDialog */}
+                <div className="flex items-center space-x-2 rounded-lg bg-gray-50 p-3">
+                  <Wallet className="h-5 w-5 text-gray-700" />
+                  <span className="text-sm font-medium text-gray-700">Wallet Balance:</span>
+                  <span className="text-sm font-medium text-gray-700">
+                    {balance} {novel?.coinSymbol || 'TOKEN'} tokens
+                  </span>
                 </div>
+
+                {/* Stake Amount Input - Updated styling */}
                 <input
                   type="number"
                   value={stakeAmount}
                   onChange={(e) => setStakeAmount(e.target.value)}
-                  placeholder="Enter amount to stake"
-                  className="w-full rounded border border-purple-300 p-2 text-gray-900 placeholder-gray-500 focus:ring-2 focus:ring-purple-500 focus:outline-none"
+                  placeholder={`Number of ${novel?.coinSymbol || 'TOKEN'} tokens`}
+                  className="w-full rounded-lg border border-gray-300 p-3 text-sm text-gray-900 placeholder-gray-500 focus:border-purple-500 focus:ring-2 focus:ring-purple-200 focus:outline-none disabled:cursor-not-allowed disabled:bg-gray-50"
                   step="0.01"
                   min="0"
                   max={balance}
                 />
+
                 {stakeAmount && !isValidStakeAmount() && (
                   <p className="text-sm text-red-600">
                     {parseFloat(stakeAmount) > parseFloat(balance)
@@ -428,7 +489,7 @@ function AwardDialog({
     setIsProcessing(true);
 
     try {
-      setCurrentStep('Step 1/3|Sending comment bounty');
+      setCurrentStep('Preparing|...');
 
       // Get the token contract for approval
       const tokenContract = getContract({
@@ -444,6 +505,8 @@ function AwardDialog({
         address: novel.novelAddress as `0x${string}`,
       });
 
+      setCurrentStep('Step 1/2|Releasing Bounty');
+
       // First approve the novel contract to spend tokens
       const approveTransaction = prepareContractCall({
         contract: tokenContract,
@@ -455,8 +518,6 @@ function AwardDialog({
         transaction: approveTransaction,
         account,
       });
-
-      setCurrentStep('Step 2/3|Sending stakers reward');
 
       // Convert itemId to bytes32 for _commentId
       const commentIdBytes32 = keccak256(stringToBytes(itemId, { size: 32 }));
@@ -480,7 +541,7 @@ function AwardDialog({
         account,
       });
 
-      setCurrentStep('Step 3/3|Finalising award');
+      setCurrentStep('Step 2/2|Releasing Staking Rewards');
 
       // Update database
       const endpoint =
@@ -520,78 +581,83 @@ function AwardDialog({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-purple-900/20 backdrop-blur-sm">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-yellow-900/20 backdrop-blur-sm">
       <div className="mx-4 w-full max-w-md rounded-lg bg-white p-6 shadow-xl">
         <div className="mb-4">
-          <h3 className="text-lg font-semibold text-purple-800">
-            Award {itemType === 'comment' ? 'Comment' : 'Reply'}
-          </h3>
+          <h3 className="text-lg font-semibold text-yellow-800">Award Reply</h3>
+          <p className="mt-2 text-sm text-gray-600">
+            This will award the bounty to the reply author and staking rewards to all who have
+            staked on it
+          </p>
         </div>
 
         {isProcessing ? (
           <div className="py-8 text-center">
-            <Loader2 className="mx-auto mb-4 h-8 w-8 animate-spin text-purple-600" />
+            <Loader2 className="mx-auto mb-4 h-8 w-8 animate-spin text-yellow-600" />
             {currentStep && (
               <div className="space-y-2">
                 {currentStep.includes('|') ? (
                   <>
-                    <h4 className="text-lg font-semibold text-purple-800">
+                    <h4 className="text-lg font-semibold text-yellow-800">
                       {currentStep.split('|')[0]}
                     </h4>
-                    <p className="text-purple-700">{currentStep.split('|')[1]}</p>
+                    <p className="text-yellow-700">{currentStep.split('|')[1]}</p>
                   </>
                 ) : (
-                  <p className="text-purple-700">{currentStep}</p>
+                  <p className="text-yellow-700">{currentStep}</p>
                 )}
               </div>
             )}
           </div>
         ) : (
           <div className="space-y-4">
-            <div className="space-y-3 rounded-lg bg-yellow-50 p-3">
-              <div className="flex items-center text-sm text-purple-700">
-                <Wallet className="mr-2 h-4 w-4" />
-                Balance: {balance} {novel?.coinSymbol || 'TOKEN'}
-              </div>
-
-              <div>
-                <label className="mb-1 block text-sm font-medium text-purple-800">
-                  Bounty Amount
-                </label>
-                <input
-                  type="number"
-                  value={bountyAmount}
-                  onChange={(e) => setBountyAmount(e.target.value)}
-                  placeholder="Enter bounty amount"
-                  className="w-full rounded border border-purple-300 p-2 text-gray-900 placeholder-gray-500 focus:ring-2 focus:ring-purple-500 focus:outline-none"
-                  step="0.01"
-                  min="0"
-                />
-              </div>
-
-              <div>
-                <label className="mb-1 block text-sm font-medium text-purple-800">
-                  Stakers Reward
-                </label>
-                <input
-                  type="number"
-                  value={stakersReward}
-                  onChange={(e) => setStakersReward(e.target.value)}
-                  placeholder="Enter stakers reward"
-                  className="w-full rounded border border-purple-300 p-2 text-gray-900 placeholder-gray-500 focus:ring-2 focus:ring-purple-500 focus:outline-none"
-                  step="0.01"
-                  min="0"
-                />
-              </div>
-
-              {bountyAmount && stakersReward && !isValidAmounts() && (
-                <p className="text-sm text-red-600">
-                  {parseFloat(bountyAmount) + parseFloat(stakersReward) > parseFloat(balance)
-                    ? 'Total amount exceeds balance'
-                    : 'Both amounts must be greater than zero'}
-                </p>
-              )}
+            {/* Token Balance Display */}
+            <div className="flex items-center space-x-2 rounded-lg bg-gray-50 p-3">
+              <Wallet className="h-5 w-5 text-gray-700" />
+              <span className="text-sm font-medium text-gray-700">Wallet Balance:</span>
+              <span className="text-sm font-medium text-gray-700">
+                {balance} {novel?.coinSymbol || 'TOKEN'} tokens
+              </span>
             </div>
+
+            {/* Bounty Amount */}
+            <div>
+              <label className="mb-2 block text-sm font-medium text-gray-700">Bounty</label>
+              <input
+                type="number"
+                value={bountyAmount}
+                onChange={(e) => setBountyAmount(e.target.value)}
+                placeholder={`Number of ${novel?.coinSymbol || 'TOKEN'} tokens`}
+                className="w-full rounded-lg border border-gray-300 p-3 text-sm text-gray-900 placeholder-gray-500 focus:border-yellow-500 focus:ring-2 focus:ring-yellow-200 focus:outline-none disabled:cursor-not-allowed disabled:bg-gray-50"
+                step="0.01"
+                min="0"
+              />
+            </div>
+
+            {/* Stakers Reward */}
+            <div>
+              <label className="mb-2 block text-sm font-medium text-gray-700">
+                Stakers Rewards
+              </label>
+              <input
+                type="number"
+                value={stakersReward}
+                onChange={(e) => setStakersReward(e.target.value)}
+                placeholder={`Number of ${novel?.coinSymbol || 'TOKEN'} tokens`}
+                className="w-full rounded-lg border border-gray-300 p-3 text-sm text-gray-900 placeholder-gray-500 focus:border-yellow-500 focus:ring-2 focus:ring-yellow-200 focus:outline-none disabled:cursor-not-allowed disabled:bg-gray-50"
+                step="0.01"
+                min="0"
+              />
+            </div>
+
+            {/* Total validation */}
+            {bountyAmount && stakersReward && !isValidAmounts() && (
+              <div className="text-sm text-red-600">
+                {parseFloat(bountyAmount) + parseFloat(stakersReward) > parseFloat(balance)
+                  ? 'Total amount exceeds your token balance'
+                  : 'Both amounts must be greater than zero'}
+              </div>
+            )}
 
             <div className="flex space-x-3">
               <button

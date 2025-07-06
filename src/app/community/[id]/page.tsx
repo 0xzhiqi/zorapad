@@ -251,6 +251,9 @@ const RequestDialog = ({
     'Confirming Bounty',
   ];
 
+  // Don't clear form or re-enable fields until dialog is fully closed
+  const isProcessing = loading || showSuccess;
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const bounty = parseFloat(bountyAmount) || 0;
@@ -259,7 +262,7 @@ const RequestDialog = ({
     if (content.trim() && (bounty > 0 || stakers > 0)) {
       if (bounty + stakers <= tokenBalance) {
         onSubmit(content.trim(), bounty, stakers);
-        // Don't clear form fields during loading
+        // Don't clear form fields during loading or success state
       } else {
         alert(
           `Total amount (${bounty + stakers}) exceeds your token balance (${tokenBalance.toFixed(2)})`
@@ -267,6 +270,15 @@ const RequestDialog = ({
       }
     }
   };
+
+  // Clear form when dialog closes completely
+  useEffect(() => {
+    if (!isOpen) {
+      setContent('');
+      setBountyAmount('');
+      setStakersReward('');
+    }
+  }, [isOpen]);
 
   if (!isOpen || !selection) return null;
 
@@ -278,7 +290,7 @@ const RequestDialog = ({
           <button
             onClick={onClose}
             className="text-gray-400 hover:text-gray-600"
-            disabled={loading}
+            disabled={isProcessing}
           >
             <X className="h-5 w-5" />
           </button>
@@ -289,7 +301,7 @@ const RequestDialog = ({
           <div className="mb-4 rounded-lg border border-green-200 bg-green-50 p-4 shadow-sm">
             <div className="flex items-center">
               <div className="flex-shrink-0">
-                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-green-500">
+                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-green-400 to-green-600">
                   <svg className="h-5 w-5 text-white" viewBox="0 0 20 20" fill="currentColor">
                     <path
                       fillRule="evenodd"
@@ -316,12 +328,12 @@ const RequestDialog = ({
                 <div key={index} className="flex items-center">
                   <div className="flex flex-col items-center">
                     <div
-                      className={`flex h-8 w-8 items-center justify-center rounded-full border-2 ${
+                      className={`flex h-8 w-8 items-center justify-center rounded-full ${
                         index < progressStep
-                          ? 'border-green-500 bg-green-500 text-white'
+                          ? 'bg-gradient-to-br from-green-400 to-green-600 text-white'
                           : index === progressStep
-                            ? 'border-green-500 bg-green-500 text-white'
-                            : 'border-gray-300 bg-gray-200 text-gray-500'
+                            ? 'bg-gradient-to-br from-green-400 to-green-600 text-white'
+                            : 'bg-gradient-to-br from-gray-400 to-gray-600 text-white'
                       }`}
                     >
                       {index < progressStep ? (
@@ -335,7 +347,7 @@ const RequestDialog = ({
                       ) : index === progressStep ? (
                         <Loader2 className="h-4 w-4 animate-spin" />
                       ) : (
-                        <span className="text-xs font-medium">{index + 1}</span>
+                        <span className="text-xs font-medium text-white">{index + 1}</span>
                       )}
                     </div>
                     <span
@@ -375,9 +387,9 @@ const RequestDialog = ({
             placeholder="Write your request..."
             className="w-full resize-none rounded-lg border border-gray-300 p-3 text-sm text-gray-900 placeholder-gray-500 focus:border-green-500 focus:ring-2 focus:ring-green-200 focus:outline-none disabled:cursor-not-allowed disabled:bg-gray-50"
             rows={4}
-            disabled={loading}
+            disabled={isProcessing}
             required
-            autoFocus={!loading}
+            autoFocus={!isProcessing}
           />
 
           {/* Token Balance Display */}
@@ -400,7 +412,7 @@ const RequestDialog = ({
               className="w-full rounded-lg border border-gray-300 p-3 text-sm text-gray-900 placeholder-gray-500 focus:border-green-500 focus:ring-2 focus:ring-green-200 focus:outline-none disabled:cursor-not-allowed disabled:bg-gray-50"
               min="0"
               step="0.01"
-              disabled={loading}
+              disabled={isProcessing}
             />
           </div>
 
@@ -415,7 +427,7 @@ const RequestDialog = ({
               className="w-full rounded-lg border border-gray-300 p-3 text-sm text-gray-900 placeholder-gray-500 focus:border-green-500 focus:ring-2 focus:ring-green-200 focus:outline-none disabled:cursor-not-allowed disabled:bg-gray-50"
               min="0"
               step="0.01"
-              disabled={loading}
+              disabled={isProcessing}
             />
           </div>
 
@@ -424,20 +436,20 @@ const RequestDialog = ({
             <div className="mt-2 text-sm text-red-600">Total amount exceeds your token balance</div>
           )}
 
-          <div className="mt-6 flex justify-end space-x-3">
+          <div className="mt-6 grid grid-cols-2 gap-3">
             <button
               type="button"
               onClick={onClose}
               className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 focus:ring-2 focus:ring-green-200 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50"
-              disabled={loading}
+              disabled={isProcessing}
             >
               Cancel
             </button>
             <button
               type="submit"
-              className="flex items-center space-x-2 rounded-lg bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700 focus:ring-2 focus:ring-green-500 focus:ring-offset-2 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50"
+              className="flex items-center justify-center space-x-2 rounded-lg bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700 focus:ring-2 focus:ring-green-500 focus:ring-offset-2 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50"
               disabled={
-                loading ||
+                isProcessing ||
                 !content.trim() ||
                 (parseFloat(bountyAmount) || 0) + (parseFloat(stakersReward) || 0) > tokenBalance
               }
