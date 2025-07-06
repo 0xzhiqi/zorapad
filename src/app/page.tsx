@@ -20,29 +20,48 @@ import { useRouter } from 'next/navigation';
 
 import ConnectButton from './components/LoginButton';
 
+// Add interface for trending novel
+interface TrendingNovel {
+  id: string;
+  title: string;
+  authorName: string;
+  preview: string;
+}
+
 const Homepage = () => {
   const [isVisible, setIsVisible] = useState(false);
   const [activeFeature, setActiveFeature] = useState(0);
+  const [trendingNovels, setTrendingNovels] = useState<TrendingNovel[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const { data: session } = useSession();
   const router = useRouter();
   const connectButtonRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     setIsVisible(true);
+    fetchTrendingNovels();
   }, []);
 
-  // Redirect to dashboard when user successfully logs in
-  useEffect(() => {
-    if (session) {
-      router.push('/dashboard');
+  const fetchTrendingNovels = async () => {
+    try {
+      const response = await fetch('/api/novels/trending');
+      if (response.ok) {
+        const novels = await response.json();
+        setTrendingNovels(novels);
+      } else {
+        console.error('Failed to fetch trending novels');
+      }
+    } catch (error) {
+      console.error('Error fetching trending novels:', error);
+    } finally {
+      setIsLoading(false);
     }
-  }, [session, router]);
+  };
 
   const handleStartWriting = () => {
     if (session) {
       router.push('/dashboard');
     } else {
-      // Trigger the ConnectButton click programmatically
       if (connectButtonRef.current) {
         const button = connectButtonRef.current.querySelector('button');
         if (button) {
@@ -54,6 +73,10 @@ const Homepage = () => {
 
   const handleExploreStories = () => {
     router.push('/community');
+  };
+
+  const handleReadNovel = (novelId: string) => {
+    router.push(`/explore/${novelId}`);
   };
 
   const features = [
@@ -72,13 +95,6 @@ const Homepage = () => {
       title: 'Share Publicly',
       description: 'Build your audience and connect with fellow writers',
     },
-  ];
-
-  const trendingStories = [
-    { title: "The Last Airbender's Return", author: 'SkyWriter23', likes: 1542, comments: 89 },
-    { title: 'Hogwarts After Dark', author: 'MagicQuill', likes: 2103, comments: 156 },
-    { title: 'Marvel: What If Loki Won?', author: 'MischievousInk', likes: 987, comments: 67 },
-    { title: 'Pokémon: The Forgotten Region', author: 'TrainerTales', likes: 1876, comments: 134 },
   ];
 
   return (
@@ -175,7 +191,7 @@ const Homepage = () => {
           {features.map((feature, index) => (
             <div
               key={index}
-              className={`group rounded-3xl border border-white/10 bg-white/5 p-8 backdrop-blur-sm transition-all duration-500 hover:scale-105 hover:bg-white/10 hover:shadow-2xl hover:shadow-violet-500/20 ${
+              className={`group hover-shadow-violet-500/20 rounded-3xl border border-white/10 bg-white/5 p-8 backdrop-blur-sm transition-all duration-500 hover:scale-105 hover:bg-white/10 hover:shadow-2xl ${
                 activeFeature === index ? 'ring-2 ring-violet-400' : ''
               }`}
               onMouseEnter={() => setActiveFeature(index)}
@@ -196,29 +212,52 @@ const Homepage = () => {
             <h2 className="text-3xl font-bold text-white">Trending Now</h2>
           </div>
 
-          <div className="grid gap-6 md:grid-cols-2">
-            {trendingStories.map((story, index) => (
-              <div
-                key={index}
-                className="group cursor-pointer rounded-2xl border border-white/10 bg-white/5 p-6 transition-all duration-300 hover:scale-105 hover:bg-white/10"
-              >
-                <h3 className="mb-2 text-xl font-bold text-white transition-colors duration-300 group-hover:text-violet-400">
-                  {story.title}
-                </h3>
-                <p className="mb-4 text-white/60">by {story.author}</p>
-                <div className="flex items-center space-x-6 text-white/50">
-                  <div className="flex items-center space-x-2">
-                    <Heart className="h-5 w-5 text-pink-400" />
-                    <span>{story.likes.toLocaleString()}</span>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <MessageCircle className="h-5 w-5 text-blue-400" />
-                    <span>{story.comments}</span>
+          {isLoading ? (
+            <div className="grid gap-6 md:grid-cols-2">
+              {[...Array(4)].map((_, index) => (
+                <div
+                  key={index}
+                  className="animate-pulse rounded-2xl border border-white/10 bg-white/5 p-6"
+                >
+                  <div className="mb-2 h-6 rounded bg-white/10"></div>
+                  <div className="mb-4 h-4 w-1/2 rounded bg-white/10"></div>
+                  <div className="h-16 rounded bg-white/10"></div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="grid gap-6 md:grid-cols-2">
+              {trendingNovels.map((novel, index) => (
+                <div
+                  key={novel.id}
+                  className="group cursor-pointer rounded-2xl border border-white/10 bg-white/5 p-6 transition-all duration-300 hover:scale-105 hover:bg-white/10"
+                  onClick={() => handleReadNovel(novel.id)}
+                >
+                  <h3 className="mb-2 text-xl font-bold text-white transition-colors duration-300 group-hover:text-violet-400">
+                    {novel.title}
+                  </h3>
+                  <p className="mb-4 text-white/60">by {novel.authorName}</p>
+                  <p className="mb-4 text-sm leading-relaxed text-white/70">{novel.preview}</p>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-6 text-white/50">
+                      <div className="flex items-center space-x-2">
+                        <Heart className="h-5 w-5 text-pink-400" />
+                        <span>{(1500 + index * 200).toLocaleString()}</span>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <MessageCircle className="h-5 w-5 text-blue-400" />
+                        <span>{89 + index * 15}</span>
+                      </div>
+                    </div>
+                    <div className="flex items-center space-x-2 text-violet-400">
+                      <BookOpen className="h-4 w-4" />
+                      <span className="text-sm">Read</span>
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* CTA Section */}
