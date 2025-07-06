@@ -3,6 +3,9 @@
 import { useEffect, useState } from 'react';
 
 import {
+  ArrowRight,
+  BookOpen,
+  BookOpenCheck,
   Check,
   CircleCheckBig,
   Coins,
@@ -10,10 +13,14 @@ import {
   HandCoins,
   Loader2,
   MessageSquare,
+  SearchCode,
+  TextSearch,
   TrendingUp,
   Unplug,
+  Users,
 } from 'lucide-react';
 import { useSession } from 'next-auth/react';
+import { useRouter } from 'next/navigation';
 import { prepareContractCall, sendTransaction } from 'thirdweb';
 import { getContract } from 'thirdweb';
 import { useActiveAccount } from 'thirdweb/react';
@@ -119,6 +126,7 @@ interface Stake {
 const MyRewards = () => {
   const { data: session } = useSession();
   const account = useActiveAccount();
+  const router = useRouter();
   const [requestBounties, setRequestBounties] = useState<RequestBounty[]>([]);
   const [commentBounties, setCommentBounties] = useState<CommentBounty[]>([]);
   const [replyBounties, setReplyBounties] = useState<ReplyBounty[]>([]);
@@ -651,8 +659,22 @@ const MyRewards = () => {
           <h4 className="text-md mb-3 ml-2 font-medium text-purple-600">1. Request Bounties</h4>
 
           {requestBounties.length === 0 ? (
-            <div className="rounded-lg border border-gray-200 bg-gray-50 p-4 text-center">
-              <p className="text-sm text-gray-500">No request bounties available</p>
+            <div className="rounded-lg border border-purple-200 bg-gradient-to-br from-purple-50 to-pink-50 p-8 text-center">
+              <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-purple-100">
+                <Gift className="h-8 w-8 text-purple-600" />
+              </div>
+              <p className="mb-2 text-lg font-medium text-gray-700">No Request Bounties</p>
+              <p className="mx-auto mb-6 max-w-lg text-sm text-gray-600">
+                Start earning by responding to requests from writers for help on their content
+              </p>
+              <button
+                onClick={() => router.push('/community')}
+                className="inline-flex items-center rounded-lg bg-purple-600 px-4 py-2 text-sm font-medium text-white transition-colors duration-200 hover:bg-purple-700"
+              >
+                <TextSearch className="mr-2 h-4 w-4" />
+                Explore Stories
+                <ArrowRight className="ml-2 h-4 w-4" />
+              </button>
             </div>
           ) : (
             <div className="overflow-x-auto">
@@ -717,8 +739,22 @@ const MyRewards = () => {
           <h4 className="text-md mb-3 ml-2 font-medium text-purple-600">2. Comment Bounties</h4>
 
           {commentBounties.length === 0 && replyBounties.length === 0 ? (
-            <div className="rounded-lg border border-gray-200 bg-gray-50 p-4 text-center">
-              <p className="text-sm text-gray-500">No comment bounties available</p>
+            <div className="rounded-lg border border-purple-200 bg-gradient-to-br from-purple-50 to-pink-50 p-8 text-center">
+              <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-purple-100">
+                <MessageSquare className="h-8 w-8 text-purple-600" />
+              </div>
+              <p className="mb-2 text-lg font-medium text-gray-700">No Comment Bounties</p>
+              <p className="mx-auto mb-6 max-w-md text-sm text-gray-600">
+                Start earning by providing helpful comments on the work of writers in the community
+              </p>
+              <button
+                onClick={() => router.push('/community')}
+                className="inline-flex items-center rounded-lg bg-purple-600 px-4 py-2 text-sm font-medium text-white transition-colors duration-200 hover:bg-purple-700"
+              >
+                <TextSearch className="mr-2 h-4 w-4" />
+                Explore Stories
+                <ArrowRight className="ml-2 h-4 w-4" />
+              </button>
             </div>
           ) : (
             <div className="overflow-x-auto">
@@ -829,8 +865,23 @@ const MyRewards = () => {
           </h4>
 
           {stakingRewards.length === 0 ? (
-            <div className="rounded-lg border border-gray-200 bg-gray-50 p-4 text-center">
-              <p className="text-sm text-gray-500">No staking rewards available</p>
+            <div className="rounded-lg border border-purple-200 bg-gradient-to-br from-purple-50 to-pink-50 p-8 text-center">
+              <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-purple-100">
+                <Coins className="h-8 w-8 text-purple-600" />
+              </div>
+              <p className="mb-2 text-lg font-medium text-gray-700">No Staking Rewards </p>
+              <p className="mx-auto mb-6 max-w-md text-sm text-gray-600">
+                Stake the story's coins on responses you love to earn rewards and let author know
+                what the community really vibes with!
+              </p>
+              <button
+                onClick={() => router.push('/community')}
+                className="inline-flex items-center rounded-lg bg-purple-600 px-4 py-2 text-sm font-medium text-white transition-colors duration-200 hover:bg-purple-700"
+              >
+                <SearchCode className="mr-2 h-4 w-4" />
+                Find Stories to Stake
+                <ArrowRight className="ml-2 h-4 w-4" />
+              </button>
             </div>
           ) : (
             <div className="overflow-x-auto">
@@ -917,8 +968,23 @@ const MyRewards = () => {
           </h4>
 
           {commentStakingRewards.length === 0 ? (
-            <div className="rounded-lg border border-gray-200 bg-gray-50 p-4 text-center">
-              <p className="text-sm text-gray-500">No comment bounty staking rewards available</p>
+            <div className="rounded-lg border border-purple-200 bg-gradient-to-br from-purple-50 to-pink-50 p-8 text-center">
+              <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-purple-100">
+                <HandCoins className="h-8 w-8 text-purple-600" />
+              </div>
+              <p className="mb-2 text-lg font-medium text-gray-700">No Staking Rewards</p>
+              <p className="mx-auto mb-6 max-w-md text-sm text-gray-600">
+                Stake the story's coins on comments you like to earn rewards and let the author know
+                they are a hit with the community!
+              </p>
+              <button
+                onClick={() => router.push('/community')}
+                className="inline-flex items-center rounded-lg bg-purple-600 px-4 py-2 text-sm font-medium text-white transition-colors duration-200 hover:bg-purple-700"
+              >
+                <SearchCode className="mr-2 h-4 w-4" />
+                FInd Comments to Stake
+                <ArrowRight className="ml-2 h-4 w-4" />
+              </button>
             </div>
           ) : (
             <div className="overflow-x-auto">
@@ -991,15 +1057,30 @@ const MyRewards = () => {
           )}
         </div>
 
-        {/* Novel Revenue Staking Subsection */}
+        {/* Story Revenue Staking Subsection */}
         <div>
           <h4 className="text-md mb-3 ml-2 font-medium text-purple-600">
-            3. Novel Revenue Staking
+            3. Story Revenue Staking
           </h4>
 
           {stakes.length === 0 ? (
-            <div className="rounded-lg border border-gray-200 bg-gray-50 p-4 text-center">
-              <p className="text-sm text-gray-500">No novel revenue stakes available</p>
+            <div className="rounded-lg border border-purple-200 bg-gradient-to-br from-purple-50 to-pink-50 p-8 text-center">
+              <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-purple-100">
+                <TrendingUp className="h-8 w-8 text-purple-600" />
+              </div>
+              <p className="mb-2 text-lg font-medium text-gray-700">No Staking Rewards</p>
+              <p className="mx-auto mb-6 max-w-md text-sm text-gray-600">
+                Stake coins on published stories you like to support the author and earn a share of
+                the stories' revenue
+              </p>
+              <button
+                onClick={() => router.push('/explore')}
+                className="inline-flex items-center rounded-lg bg-purple-600 px-4 py-2 text-sm font-medium text-white transition-colors duration-200 hover:bg-purple-700"
+              >
+                <BookOpenCheck className="mr-2 h-4 w-4" />
+                Find Stories to Stake
+                <ArrowRight className="ml-2 h-4 w-4" />
+              </button>
             </div>
           ) : (
             <div className="overflow-x-auto">

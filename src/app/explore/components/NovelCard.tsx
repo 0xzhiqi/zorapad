@@ -22,8 +22,8 @@ export default function NovelCard({ novel, onTradeClick }: NovelCardProps) {
 
   return (
     <>
-      <div className="group overflow-hidden rounded-3xl border border-white/20 bg-white/80 backdrop-blur-sm transition-all duration-300 hover:bg-white/90 hover:shadow-2xl hover:shadow-purple-500/20">
-        <div className="p-8">
+      <div className="group flex h-full flex-col overflow-hidden rounded-3xl border border-white/20 bg-white/80 backdrop-blur-sm transition-all duration-300 hover:bg-white/90 hover:shadow-2xl hover:shadow-purple-500/20">
+        <div className="flex flex-1 flex-col p-8">
           {/* Novel Title */}
           <div className="">
             <h2 className="mb-1 bg-gradient-to-br from-purple-500 to-purple-700 bg-clip-text text-2xl font-bold text-transparent transition-all duration-300 group-hover:from-purple-400 group-hover:to-purple-600">
@@ -52,7 +52,7 @@ export default function NovelCard({ novel, onTradeClick }: NovelCardProps) {
 
           <Link
             href={`/explore/${novel.id}?coinAddress=${novel.coinAddress || ''}&novelAddress=${novel.novelAddress || ''}`}
-            className="group relative mb-5 flex w-24 items-center justify-center space-x-1 overflow-hidden rounded-lg border-2 border-purple-200 bg-purple-100 px-3 py-2 text-sm font-semibold text-purple-600 backdrop-blur-sm transition-all duration-300 hover:scale-105 hover:bg-purple-200"
+            className="group relative mb-5 flex w-32 items-center justify-center space-x-1 overflow-hidden rounded-lg border-2 border-purple-200 bg-purple-100 px-3 py-2 text-sm font-semibold text-purple-600 backdrop-blur-sm transition-all duration-300 hover:scale-105 hover:bg-purple-200"
           >
             {/* Shimmer effect */}
             <div className="group-hover:animate-shimmer absolute inset-0 -top-px bg-gradient-to-r from-transparent via-white/20 to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
@@ -71,37 +71,39 @@ export default function NovelCard({ novel, onTradeClick }: NovelCardProps) {
           </Link>
 
           {/* Coin Information */}
-          <div className="rounded-2xl border border-purple-100 bg-gradient-to-br from-purple-50 to-blue-50 p-6">
+          <div className="mb-5 flex flex-1 flex-col rounded-2xl border border-purple-100 bg-gradient-to-br from-purple-50 to-blue-50 p-6">
             <div className="mb-4">
               <h3 className="text-lg font-bold text-gray-900">{novel.coinName}</h3>
             </div>
 
             {/* Coin Metrics */}
             {novel.coinData ? (
-              <div className="mb-4 grid grid-cols-3 gap-3">
-                <div className="rounded-xl bg-white/60 p-3 text-center">
+              <div className="mb-4 grid flex-1 grid-cols-3 gap-3">
+                <div className="flex flex-col rounded-xl bg-white/60 p-3 text-center">
                   <p className="mb-1 text-xs text-gray-500">Market Cap</p>
-                  <p className="font-bold text-gray-900">
+                  <p className="text-sm font-bold break-words text-gray-900">
                     ${formatNumber(novel.coinData.marketCap)}
                   </p>
                 </div>
-                <div className="rounded-xl bg-white/60 p-3 text-center">
+                <div className="flex flex-col rounded-xl bg-white/60 p-3 text-center">
                   <p className="mb-1 text-xs text-gray-500">24h Volume</p>
-                  <p className="font-bold text-gray-900">
+                  <p className="text-sm font-bold break-words text-gray-900">
                     ${formatNumber(novel.coinData.volume24h)}
                   </p>
                 </div>
-                <div className="rounded-xl bg-white/60 p-3 text-center">
+                <div className="flex flex-col rounded-xl bg-white/60 p-3 text-center">
                   <p className="mb-1 text-xs text-gray-500">Holders</p>
-                  <p className="font-bold text-gray-900">{novel.coinData.uniqueHolders}</p>
+                  <p className="text-sm font-bold break-words text-gray-900">
+                    {novel.coinData.uniqueHolders}
+                  </p>
                 </div>
               </div>
             ) : (
-              <div className="mb-4 rounded-xl bg-white/60 p-4 text-center text-sm text-gray-400">
+              <div className="mb-4 flex flex-1 items-center justify-center rounded-xl bg-white/60 p-4 text-center text-sm text-gray-400">
                 {novel.coinAddress ? 'Loading coin data...' : 'No coin data available'}
               </div>
             )}
-            <div className="flex flex-row space-x-4">
+            <div className="mt-auto flex flex-row space-x-4">
               {/* Trade Button */}
               <button
                 onClick={() => onTradeClick(novel)}

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 
-import { BookOpen, BookOpenText, Check, Loader2, Plus, X } from 'lucide-react';
+import { ArrowRight, BookOpen, BookOpenText, Check, Loader2, Plus, X } from 'lucide-react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
 
@@ -166,10 +166,23 @@ const MyNovels = () => {
       </div>
 
       {novels.length === 0 ? (
-        <div className="rounded-lg border border-gray-200 bg-gray-50 p-8">
-          <div className="text-center">
-            <p className="text-gray-500">No Novels Created Yet</p>
+        <div className="rounded-lg border border-purple-200 bg-gradient-to-br from-purple-50 to-pink-50 p-8 text-center">
+          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-purple-100">
+            <BookOpenText className="h-8 w-8 text-purple-600" />
           </div>
+          <p className="mb-2 text-lg font-medium text-gray-700">No Novels Created Yet</p>
+          <p className="mx-auto mb-6 max-w-lg text-sm text-gray-600">
+            Start your writing journey by creating your first novel and connect with readers who
+            will support your creative work
+          </p>
+          <button
+            onClick={() => router.push('./launch-new-novel')}
+            className="inline-flex items-center rounded-lg bg-purple-600 px-4 py-2 text-sm font-medium text-white transition-colors duration-200 hover:bg-purple-700"
+          >
+            <Plus className="mr-2 h-4 w-4" />
+            Launch Novel
+            <ArrowRight className="ml-2 h-4 w-4" />
+          </button>
         </div>
       ) : (
         <div className="overflow-x-auto">

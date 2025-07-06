@@ -83,7 +83,7 @@ const Homepage = () => {
     {
       icon: <Pen className="h-8 w-8" />,
       title: 'Write Freely',
-      description: 'Create captivating fanfiction with our intuitive editor',
+      description: 'Create captivating stories with our intuitive editor',
     },
     {
       icon: <Users className="h-8 w-8" />,
@@ -160,8 +160,8 @@ const Homepage = () => {
           </h1>
 
           <p className="mx-auto mb-12 max-w-4xl text-xl leading-relaxed text-white/80 md:text-2xl">
-            The ultimate platform for fanfiction writers to craft incredible stories, receive
-            instant feedback, and build a community of passionate readers.
+            The ultimate platform for writers to craft incredible stories, receive instant feedback,
+            and build a community of passionate readers.
           </p>
 
           <div className="mb-16 flex flex-col items-center justify-center gap-6 sm:flex-row">
@@ -192,14 +192,9 @@ const Homepage = () => {
           {features.map((feature, index) => (
             <div
               key={index}
-              className={`group hover-shadow-violet-500/20 rounded-3xl border border-white/10 bg-white/5 p-8 backdrop-blur-sm transition-all duration-500 hover:scale-105 hover:bg-white/10 hover:shadow-2xl ${
-                activeFeature === index ? 'ring-2 ring-violet-400' : ''
-              }`}
-              onMouseEnter={() => setActiveFeature(index)}
+              className="rounded-3xl border border-white/10 bg-white/5 p-8 backdrop-blur-sm"
             >
-              <div className="mb-6 text-violet-400 transition-transform duration-300 group-hover:scale-110">
-                {feature.icon}
-              </div>
+              <div className="mb-6 text-violet-400">{feature.icon}</div>
               <h3 className="mb-4 text-2xl font-bold text-white">{feature.title}</h3>
               <p className="text-lg leading-relaxed text-white/70">{feature.description}</p>
             </div>

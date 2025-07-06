@@ -99,7 +99,7 @@ const ProfilePage = () => {
 
             {isLoggingOut ? (
               <div className="flex items-center justify-center py-6">
-                <div className="h-4 w-4 animate-spin rounded-full border-b-2 border-red-600"></div>
+                <div className="h-4 w-4 animate-spin rounded-full border-b-2 border-purple-600"></div>
                 <span className="ml-3 text-gray-700">Signing out...</span>
               </div>
             ) : (
@@ -112,7 +112,7 @@ const ProfilePage = () => {
                 </button>
                 <button
                   onClick={handleConfirmLogout}
-                  className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white transition-colors duration-200 hover:bg-red-700"
+                  className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-purple-600 px-4 py-2 text-sm font-medium text-white transition-colors duration-200 hover:bg-purple-700"
                 >
                   <LogOut className="h-4 w-4" />
                   <span>Sign Out</span>
