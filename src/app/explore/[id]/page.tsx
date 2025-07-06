@@ -1,57 +1,148 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
+import { EditorContent, useEditor } from '@tiptap/react';
+import StarterKit from '@tiptap/starter-kit';
+import { ChevronDown, ChevronLeft, Loader2 } from 'lucide-react';
 import Link from 'next/link';
-import { useParams, useSearchParams } from 'next/navigation';
+import { useParams } from 'next/navigation';
 
 interface Author {
   id: string;
-  name: string;
-  email: string;
-  walletAddress: string;
+  name?: string;
+  email?: string;
 }
 
 interface Chapter {
   id: string;
   title: string;
-  wordCount: number;
-  published: boolean;
-  order: number;
-}
-
-interface CoinData {
-  marketCap: string;
-  volume24h: string;
-  uniqueHolders: number;
+  order?: number;
+  wordCount?: number;
+  contentUrl?: string;
 }
 
 interface Novel {
   id: string;
   title: string;
-  coinName: string;
-  coinSymbol: string;
-  coinAddress: string | null;
-  novelAddress: string | null;
-  published: boolean;
   author: Author;
   chapters: Chapter[];
-  coinData: CoinData | null;
-  createdAt: string;
-  updatedAt: string;
 }
+
+const ChapterDropdown = ({
+  chapters,
+  selectedChapter,
+  onSelect,
+  disabled = false,
+}: {
+  chapters: Chapter[];
+  selectedChapter: Chapter | null;
+  onSelect: (chapter: Chapter) => void;
+  disabled?: boolean;
+}) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    };
+
+    if (isOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isOpen]);
+
+  if (chapters.length === 0) return null;
+
+  return (
+    <div className="relative" ref={dropdownRef}>
+      <button
+        onClick={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          if (!disabled) {
+            setIsOpen(!isOpen);
+          }
+        }}
+        disabled={disabled}
+        className="flex min-w-[200px] items-center justify-between space-x-2 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+      >
+        <span className="truncate text-gray-700">
+          {selectedChapter
+            ? `${selectedChapter.title}${selectedChapter.order ? ` (Ch. ${selectedChapter.order})` : ''}`
+            : 'Select a chapter to read'}
+        </span>
+        <ChevronDown
+          className={`h-4 w-4 flex-shrink-0 text-gray-500 transition-transform duration-200 ${
+            isOpen ? 'rotate-180' : ''
+          }`}
+        />
+      </button>
+
+      {isOpen && (
+        <div className="absolute right-0 left-0 z-50 mt-1 min-w-[300px] rounded-lg border border-gray-200 bg-white shadow-lg">
+          <div className="max-h-60 overflow-y-auto bg-white py-1">
+            {chapters.map((chapter) => (
+              <button
+                key={chapter.id}
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  onSelect(chapter);
+                  setIsOpen(false);
+                }}
+                className={`w-full px-3 py-2 text-left text-sm transition-colors duration-150 hover:bg-gray-100 focus:bg-gray-100 focus:outline-none ${
+                  selectedChapter?.id === chapter.id
+                    ? 'border-l-4 border-purple-500 bg-purple-50'
+                    : ''
+                }`}
+              >
+                <div className="font-medium text-gray-900">{chapter.title}</div>
+                <div className="text-xs text-gray-500 italic">
+                  {chapter.order ? `Chapter ${chapter.order} • ` : ''}
+                  {chapter.wordCount || 0} words
+                </div>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
 
 export default function NovelDetailPage() {
   const params = useParams();
-  const searchParams = useSearchParams();
+  const novelId = params?.id as string;
+
   const [novel, setNovel] = useState<Novel | null>(null);
+  const [selectedChapter, setSelectedChapter] = useState<Chapter | null>(null);
+  const [chapterContent, setChapterContent] = useState<string>('');
   const [loading, setLoading] = useState(true);
+  const [contentLoading, setContentLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
 
-  const novelId = params.id as string;
-  const coinAddress = searchParams.get('coinAddress');
-  const novelAddress = searchParams.get('novelAddress');
+  // Initialize TipTap editor for reading
+  const editor = useEditor({
+    extensions: [StarterKit],
+    content: chapterContent,
+    editable: false,
+    editorProps: {
+      attributes: {
+        class: 'prose prose-lg max-w-none focus:outline-none',
+      },
+    },
+  });
 
+  // Fetch novel data
   useEffect(() => {
     const fetchNovel = async () => {
       try {
@@ -61,6 +152,14 @@ export default function NovelDetailPage() {
         }
         const data = await response.json();
         setNovel(data);
+
+        // Auto-select first chapter
+        if (data.chapters.length > 0) {
+          const sortedChapters = data.chapters.sort(
+            (a: Chapter, b: Chapter) => (a.order || 0) - (b.order || 0)
+          );
+          setSelectedChapter(sortedChapters[0]);
+        }
       } catch (err) {
         setError(err instanceof Error ? err.message : 'An error occurred');
       } finally {
@@ -73,200 +172,200 @@ export default function NovelDetailPage() {
     }
   }, [novelId]);
 
-  const handleCoinClick = () => {
-    if (coinAddress) {
-      window.open(`https://testnet.zora.co/coin/bsep:${coinAddress}`, '_blank');
-    }
-  };
+  // Fetch chapter content when selected chapter changes
+  useEffect(() => {
+    const fetchChapterContent = async () => {
+      if (!selectedChapter) return;
 
-  const formatNumber = (num: string | number) => {
-    const value = typeof num === 'string' ? parseFloat(num) : num;
-    if (value >= 1000000) {
-      return `${(value / 1000000).toFixed(1)}M`;
-    } else if (value >= 1000) {
-      return `${(value / 1000).toFixed(1)}K`;
-    }
-    return value.toFixed(2);
-  };
+      setContentLoading(true);
+      try {
+        const response = await fetch(`/api/chapters/${selectedChapter.id}/content`);
+
+        if (!response.ok) {
+          throw new Error('Failed to fetch chapter content');
+        }
+
+        const contentData = await response.json();
+        const content = contentData.content || '<p>No content available for this chapter.</p>';
+
+        setChapterContent(content);
+
+        if (editor) {
+          editor.commands.setContent(content);
+        }
+      } catch (err) {
+        console.error('Error fetching chapter content:', err);
+        const errorContent = '<p>Error loading chapter content.</p>';
+        setChapterContent(errorContent);
+        if (editor) {
+          editor.commands.setContent(errorContent);
+        }
+      } finally {
+        setContentLoading(false);
+      }
+    };
+
+    fetchChapterContent();
+  }, [selectedChapter, editor]);
 
   if (loading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-gray-50">
-        <div className="text-center">
-          <div className="mx-auto mb-4 h-12 w-12 animate-spin rounded-full border-b-2 border-blue-600"></div>
-          <p className="text-gray-600">Loading novel details...</p>
-        </div>
+        <Loader2 className="h-8 w-8 animate-spin text-purple-600" />
       </div>
     );
   }
 
-  if (error) {
+  if (error || !novel) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-gray-50">
-        <div className="text-center">
-          <p className="mb-4 text-red-600">Error: {error}</p>
-          <Link
-            href="/explore"
-            className="rounded bg-blue-600 px-4 py-2 text-white hover:bg-blue-700"
-          >
-            Back to Explore
-          </Link>
-        </div>
-      </div>
-    );
-  }
-
-  if (!novel) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-gray-50">
-        <div className="text-center">
-          <p className="mb-4 text-gray-600">Novel not found</p>
-          <Link
-            href="/explore"
-            className="rounded bg-blue-600 px-4 py-2 text-white hover:bg-blue-700"
-          >
-            Back to Explore
-          </Link>
-        </div>
+        <div className="text-red-600">Error: {error || 'Novel not found'}</div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8">
-      <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8">
-        {/* Navigation */}
-        <div className="mb-6">
-          <Link href="/explore" className="font-medium text-blue-600 hover:text-blue-800">
-            ← Back to Explore
-          </Link>
-        </div>
-
-        {/* Novel Header */}
-        <div className="mb-6 rounded-lg bg-white p-8 shadow-md">
-          <h1 className="mb-4 text-3xl font-bold text-gray-900">{novel.title}</h1>
-
-          {/* Author Info */}
+    <div className="min-h-screen bg-gray-50">
+      <div className="container mx-auto px-4 py-8 pt-24">
+        <div className="mx-auto max-w-4xl">
+          {/* Back Navigation */}
           <div className="mb-6">
-            <p className="text-lg text-gray-600">
-              <span className="font-medium">Author:</span> {novel.author.name}
-            </p>
-            {novel.author.walletAddress && (
-              <p className="mt-1 text-sm text-gray-500">
-                <span className="font-medium">Wallet:</span> {novel.author.walletAddress}
-              </p>
-            )}
+            <Link
+              href="/explore"
+              className="inline-flex items-center gap-2 text-purple-600 transition-colors duration-150 hover:text-purple-800"
+            >
+              <ChevronLeft className="h-4 w-4" />
+              Back to Novels
+            </Link>
           </div>
 
-          {/* Coin Information */}
-          <div className="mb-6 rounded-lg bg-gray-50 p-6">
-            <h2 className="mb-4 text-xl font-semibold text-gray-900">Associated Coin</h2>
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-              <div>
-                <p className="mb-2 text-sm text-gray-600">
-                  <span className="font-medium">Coin Name:</span> {novel.coinName}
+          {/* Combined Novel Section */}
+          {selectedChapter ? (
+            <div className="overflow-hidden rounded-xl bg-white shadow-sm">
+              {/* Header with gradient background */}
+              <div className="border-b border-purple-100 bg-gradient-to-r from-purple-50 to-indigo-50 p-6">
+                <h1 className="mb-2 text-3xl font-bold text-gray-900">{novel.title}</h1>
+                <p className="mb-4 text-gray-600 italic">
+                  by {novel.author.name || novel.author.email || 'Anonymous'}
                 </p>
-                <button
-                  onClick={handleCoinClick}
-                  className="cursor-pointer text-lg font-medium text-blue-600 transition-colors hover:text-blue-800"
-                  disabled={!coinAddress}
-                >
-                  {novel.coinSymbol}
-                </button>
-                {coinAddress && <p className="mt-1 text-xs text-gray-500">Click to view on Zora</p>}
+
+                {/* Chapter Selection */}
+                <div className="space-y-2">
+                  <div className="flex items-center space-x-4">
+                    <p className="text-md font-bold text-gray-700">
+                      Chapter {selectedChapter?.order || 1} / {novel.chapters.length}:
+                    </p>
+                    <ChapterDropdown
+                      chapters={novel.chapters}
+                      selectedChapter={selectedChapter}
+                      onSelect={setSelectedChapter}
+                      disabled={contentLoading}
+                    />
+                  </div>
+                  {selectedChapter && selectedChapter.wordCount !== undefined && (
+                    <p className="text text-gray-600 italic">
+                      {selectedChapter.wordCount === 1
+                        ? '1 word'
+                        : `${selectedChapter.wordCount} words`}
+                    </p>
+                  )}
+                </div>
               </div>
 
-              {novel.coinData && (
-                <div className="grid grid-cols-3 gap-4">
-                  <div className="text-center">
-                    <p className="text-sm text-gray-500">Market Cap</p>
-                    <p className="text-lg font-semibold">
-                      ${formatNumber(novel.coinData.marketCap)}
-                    </p>
+              {/* Content section */}
+              <div className="p-8" ref={contentRef}>
+                {contentLoading ? (
+                  <div className="flex items-center justify-center py-12">
+                    <Loader2 className="h-6 w-6 animate-spin text-purple-600" />
                   </div>
-                  <div className="text-center">
-                    <p className="text-sm text-gray-500">24h Volume</p>
-                    <p className="text-lg font-semibold">
-                      ${formatNumber(novel.coinData.volume24h)}
-                    </p>
+                ) : (
+                  <div className="chapter-content relative">
+                    <EditorContent editor={editor} />
                   </div>
-                  <div className="text-center">
-                    <p className="text-sm text-gray-500">Holders</p>
-                    <p className="text-lg font-semibold">{novel.coinData.uniqueHolders}</p>
-                  </div>
-                </div>
-              )}
+                )}
+              </div>
             </div>
-          </div>
-
-          {/* Contract Addresses (for future use) */}
-          {(coinAddress || novelAddress) && (
-            <div className="mb-6 rounded-lg bg-blue-50 p-4">
-              <h3 className="mb-2 text-lg font-semibold text-gray-900">Contract Information</h3>
-              {coinAddress && (
-                <p className="mb-1 text-sm text-gray-600">
-                  <span className="font-medium">Coin Address:</span>
-                  <span className="ml-2 font-mono text-xs">{coinAddress}</span>
-                </p>
-              )}
-              {novelAddress && (
-                <p className="text-sm text-gray-600">
-                  <span className="font-medium">Novel Address:</span>
-                  <span className="ml-2 font-mono text-xs">{novelAddress}</span>
-                </p>
-              )}
-            </div>
-          )}
-        </div>
-
-        {/* Chapters Section */}
-        <div className="rounded-lg bg-white p-8 shadow-md">
-          <h2 className="mb-6 text-2xl font-semibold text-gray-900">
-            Chapters ({novel.chapters.length})
-          </h2>
-
-          {novel.chapters.length === 0 ? (
-            <p className="py-8 text-center text-gray-500">No chapters available</p>
           ) : (
-            <div className="space-y-4">
-              {novel.chapters
-                .sort((a, b) => a.order - b.order)
-                .map((chapter) => (
-                  <div
-                    key={chapter.id}
-                    className="rounded-lg border border-gray-200 p-4 transition-colors hover:bg-gray-50"
-                  >
-                    <div className="flex items-start justify-between">
-                      <div>
-                        <h3 className="text-lg font-medium text-gray-900">
-                          Chapter {chapter.order}: {chapter.title}
-                        </h3>
-                        <p className="mt-1 text-sm text-gray-600">{chapter.wordCount} words</p>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        {chapter.published ? (
-                          <span className="rounded bg-green-100 px-2 py-1 text-xs font-medium text-green-800">
-                            Published
-                          </span>
-                        ) : (
-                          <span className="rounded bg-gray-100 px-2 py-1 text-xs font-medium text-gray-800">
-                            Draft
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                ))}
+            /* Header only when no chapter selected */
+            <div className="mb-6 rounded-xl border border-purple-100 bg-gradient-to-r from-purple-50 to-indigo-50 p-6 shadow-sm">
+              <h1 className="mb-2 text-3xl font-bold text-gray-900">{novel.title}</h1>
+              <p className="mb-4 text-gray-600 italic">
+                by {novel.author.name || novel.author.email || 'Anonymous'}
+              </p>
+
+              {/* Chapter Selection */}
+              <div className="space-y-2">
+                <div className="flex items-center space-x-4">
+                  <p className="text-md font-bold text-gray-700">
+                    Chapter 1 / {novel.chapters.length}:
+                  </p>
+                  <ChapterDropdown
+                    chapters={novel.chapters}
+                    selectedChapter={selectedChapter}
+                    onSelect={setSelectedChapter}
+                    disabled={contentLoading}
+                  />
+                </div>
+              </div>
             </div>
           )}
-        </div>
 
-        {/* Metadata */}
-        <div className="mt-6 text-center text-sm text-gray-500">
-          <p>Published: {new Date(novel.createdAt).toLocaleDateString()}</p>
-          <p>Last Updated: {new Date(novel.updatedAt).toLocaleDateString()}</p>
+          {/* No Chapters Message */}
+          {novel.chapters.length === 0 && (
+            <div className="rounded-lg bg-white p-12 text-center shadow-sm">
+              <p className="text-gray-500">No chapters available for this novel.</p>
+            </div>
+          )}
         </div>
       </div>
+
+      {/* Custom CSS for clean reading experience */}
+      <style jsx global>{`
+        .chapter-content .ProseMirror {
+          outline: none;
+          color: #111827 !important;
+          font-size: 1.125rem;
+          line-height: 1.75;
+          font-family: 'Georgia', 'Times New Roman', serif;
+        }
+
+        .chapter-content .ProseMirror p {
+          color: #111827 !important;
+          margin-bottom: 1.5rem;
+        }
+
+        .chapter-content .ProseMirror h1,
+        .chapter-content .ProseMirror h2,
+        .chapter-content .ProseMirror h3 {
+          color: #111827 !important;
+          font-weight: 600;
+          margin-top: 2rem;
+          margin-bottom: 1rem;
+        }
+
+        .chapter-content .ProseMirror h1 {
+          font-size: 1.875rem;
+        }
+
+        .chapter-content .ProseMirror h2 {
+          font-size: 1.5rem;
+        }
+
+        .chapter-content .ProseMirror h3 {
+          font-size: 1.25rem;
+        }
+
+        .chapter-content ::selection {
+          background-color: #ddd6fe;
+        }
+
+        @media (max-width: 768px) {
+          .chapter-content .ProseMirror {
+            font-size: 1rem;
+            line-height: 1.6;
+          }
+        }
+      `}</style>
     </div>
   );
 }
