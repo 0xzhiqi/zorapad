@@ -141,9 +141,10 @@ const Homepage = () => {
         <div
           className={`transform text-center transition-all duration-1000 ${isVisible ? 'translate-y-0 opacity-100' : 'translate-y-10 opacity-0'}`}
         >
-          <div className="my-8 inline-flex items-center space-x-2 rounded-full border border-white/20 bg-white/10 px-6 py-3 backdrop-blur-sm">
-            <Zap className="h-5 w-5 text-yellow-400" />
-            <span className="text-sm font-medium text-white/90">Where Stories Come Alive</span>
+          <div className="my-8 inline-flex items-center space-x-2">
+            <span className="text-md font-medium text-white/90 md:text-xl">
+              Where Stories Come Alive
+            </span>
           </div>
 
           <h1 className="mb-8 text-6xl leading-tight font-bold md:text-8xl">
@@ -264,8 +265,7 @@ const Homepage = () => {
         <div className="mt-20 text-center">
           <div className="inline-block rounded-3xl bg-gradient-to-r from-pink-500 to-violet-500 p-1">
             <div className="rounded-3xl bg-gradient-to-br from-purple-900 to-indigo-900 px-12 py-12">
-              <Star className="slow mx-auto mb-6 h-16 w-16 animate-spin text-yellow-400" />
-              <h2 className="mb-6 text-4xl font-bold text-white md:text-5xl">
+              <h2 className="mb-8 text-4xl font-bold text-white md:text-5xl">
                 Ready to Begin Your Journey?
               </h2>
               <p className="mx-auto mb-8 max-w-2xl text-xl text-white/80">
