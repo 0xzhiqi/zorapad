@@ -33,13 +33,13 @@ const ProfileHeader = ({ user }: ProfileHeaderProps) => {
         </div>
 
         <div className="relative flex h-16 min-w-0 flex-1 flex-col justify-center">
-          <div className="transition-all duration-300 ease-out group-hover:-translate-y-2">
+          <div className="transition-all duration-300 ease-out group-hover:min-w-36 group-hover:-translate-y-2">
             <h1 className="text-2xl font-bold text-gray-900 transition-colors duration-300 group-hover:text-gray-800">
               {user?.name || 'Anonymous User'}
             </h1>
           </div>
           <div className="absolute top-8 right-0 left-0 translate-y-1 opacity-0 transition-all duration-300 ease-out group-hover:translate-y-0 group-hover:opacity-100">
-            <p className="mt-2 text-sm text-gray-500">View and edit profile</p>
+            <p className="mt-2 min-w-36 text-sm text-gray-500">View and edit profile</p>
           </div>
         </div>
 

@@ -86,7 +86,7 @@ const AccountDetails = ({ user, onLogoutClick }: AccountDetailsProps) => {
                   <p className="text-base font-medium text-gray-500">{currentDisplayName}</p>
                   <button
                     onClick={() => setShowNameModal(true)}
-                    className="flex min-w-32 items-center gap-2 rounded-lg bg-purple-100 px-6 py-2 text-sm font-medium text-purple-700 transition-colors duration-200 hover:bg-purple-200"
+                    className="flex min-w-32 items-center gap-2 rounded-lg bg-gray-200 px-6 py-2 text-sm font-medium text-gray-700 transition-colors duration-200 hover:bg-gray-300"
                   >
                     <Edit3 className="h-4 w-4" />
                     Update
@@ -144,17 +144,10 @@ const AccountDetails = ({ user, onLogoutClick }: AccountDetailsProps) => {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
           <div className="mx-4 w-full max-w-md rounded-xl border border-gray-200 bg-white p-8 shadow-2xl">
             <div className="mb-6 flex items-center justify-between">
-              <h3 className="flex items-center gap-2 text-xl font-bold text-gray-900">
-                <Edit3 className="h-4 w-4 text-purple-600" />
+              <h3 className="flex items-center gap-2 text-xl font-bold text-gray-600">
+                <Edit3 className="h-5 w-5 text-gray-600" />
                 Update Display Name
               </h3>
-              <button
-                onClick={handleCloseModal}
-                className="text-gray-400 transition-colors hover:text-gray-600"
-                disabled={isPending}
-              >
-                <X className="h-4 w-4" />
-              </button>
             </div>
 
             <div className="space-y-4">

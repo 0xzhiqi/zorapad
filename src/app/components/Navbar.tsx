@@ -5,7 +5,7 @@ import { useEffect, useState } from 'react';
 import { Feather, LayoutDashboard, Menu, X } from 'lucide-react';
 import { useSession } from 'next-auth/react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 
 import ConnectButton from './LoginButton';
 
@@ -15,8 +15,9 @@ interface NavbarProps {
 }
 
 const Navbar: React.FC<NavbarProps> = ({ isMobileMenuOpen, setIsMobileMenuOpen }) => {
-  const { data: session } = useSession();
+  const { data: session, status } = useSession();
   const pathname = usePathname();
+  const router = useRouter();
   const [isScrolled, setIsScrolled] = useState(false);
 
   // Determine if we're on the homepage (dark background) or other pages (light background)
@@ -32,6 +33,16 @@ const Navbar: React.FC<NavbarProps> = ({ isMobileMenuOpen, setIsMobileMenuOpen }
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
+
+  // Redirect to home if user tries to access protected routes without session
+  useEffect(() => {
+    const protectedRoutes = ['/dashboard', '/profile', '/launch-new-novel', '/edit-novel'];
+    const isProtectedRoute = protectedRoutes.some(route => pathname.startsWith(route));
+    
+    if (status !== 'loading' && !session && isProtectedRoute) {
+      router.push('/');
+    }
+  }, [session, status, pathname, router]);
 
   // Dynamic background based on scroll state and page
   const getNavbarBackground = () => {
@@ -58,6 +69,9 @@ const Navbar: React.FC<NavbarProps> = ({ isMobileMenuOpen, setIsMobileMenuOpen }
     ? 'bg-gradient-to-br from-purple-900/90 via-blue-900/90 to-indigo-900/90'
     : 'bg-white/95';
   const mobileMenuBorder = isHomepage ? 'border-white/20' : 'border-purple-200';
+
+  // Only show Dashboard button if user is authenticated
+  const showDashboard = status !== 'loading' && session;
 
   return (
     <>
@@ -108,7 +122,7 @@ const Navbar: React.FC<NavbarProps> = ({ isMobileMenuOpen, setIsMobileMenuOpen }
             >
               Community
             </Link>
-            {session ? (
+            {showDashboard ? (
               <Link
                 href="/dashboard"
                 className={`flex items-center space-x-2 rounded-full border-2 ${buttonBorderColor} ${buttonBgColor} px-6 py-3 font-semibold ${buttonTextColor} backdrop-blur-sm transition-all duration-300 hover:scale-105 ${buttonBgColorHover}`}
@@ -150,7 +164,7 @@ const Navbar: React.FC<NavbarProps> = ({ isMobileMenuOpen, setIsMobileMenuOpen }
               >
                 Community
               </Link>
-              {session ? (
+              {showDashboard ? (
                 <Link
                   href="/dashboard"
                   className={`flex items-center justify-center space-x-2 rounded-full border-2 ${buttonBorderColor} ${buttonBgColor} px-6 py-3 font-semibold ${buttonTextColor} backdrop-blur-sm transition-all duration-300 ${buttonBgColorHover}`}

@@ -38,14 +38,16 @@ const ProfilePage = () => {
         await activeWallet.disconnect();
       }
 
-      // Then sign out from auth
-      await signOut({ redirect: false });
-
-      // Finally redirect to homepage
-      router.push('/');
+      // Then sign out from auth with redirect
+      await signOut({
+        redirect: true,
+        callbackUrl: '/',
+      });
     } catch (error) {
       console.error('Logout error:', error);
       setIsLoggingOut(false);
+      // Fallback: force redirect to home
+      window.location.href = '/';
     }
   };
 
@@ -79,35 +81,38 @@ const ProfilePage = () => {
 
       {/* Logout Confirmation Dialog */}
       {showLogoutDialog && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-purple-900/30 backdrop-blur-sm">
-          <div className="mx-4 w-full max-w-md rounded-3xl border border-white/10 bg-white/5 p-8 shadow-2xl backdrop-blur-sm">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+          <div className="mx-4 w-full max-w-md rounded-xl border border-gray-200 bg-white p-8 shadow-2xl">
             <div className="mb-6 flex items-center justify-between">
-              <h3 className="text-xl font-bold text-white">Confirm Logout</h3>
+              <h3 className="flex items-center gap-2 text-xl font-bold text-gray-600">
+                <LogOut className="h-5 w-5" />
+                Confirm Logout
+              </h3>
               <button
                 onClick={handleCancelLogout}
-                className="text-white/60 transition-colors hover:text-white/80"
+                className="text-gray-400 transition-colors hover:text-gray-600"
                 disabled={isLoggingOut}
               ></button>
             </div>
 
-            <p className="mb-8 text-lg text-white/70">Are you sure you want to sign out?</p>
+            <p className="mb-8 text-base text-gray-700">Are you sure you want to sign out?</p>
 
             {isLoggingOut ? (
               <div className="flex items-center justify-center py-6">
-                <div className="h-6 w-6 animate-spin rounded-full border-b-2 border-violet-400"></div>
-                <span className="ml-3 text-white/80">Signing out...</span>
+                <div className="h-4 w-4 animate-spin rounded-full border-b-2 border-red-600"></div>
+                <span className="ml-3 text-gray-700">Signing out...</span>
               </div>
             ) : (
-              <div className="flex space-x-4">
+              <div className="flex space-x-3">
                 <button
                   onClick={handleCancelLogout}
-                  className="flex-1 rounded-full border border-white/20 bg-white/10 px-6 py-3 text-white/90 backdrop-blur-sm transition-all duration-300 hover:scale-105 hover:bg-white/20"
+                  className="flex-1 rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition-colors duration-200 hover:bg-gray-50"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={handleConfirmLogout}
-                  className="flex flex-1 items-center justify-center space-x-2 rounded-full bg-red-100 px-4 py-2 text-red-700 transition-colors hover:bg-red-200"
+                  className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white transition-colors duration-200 hover:bg-red-700"
                 >
                   <LogOut className="h-4 w-4" />
                   <span>Sign Out</span>
