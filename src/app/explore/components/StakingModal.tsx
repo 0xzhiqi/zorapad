@@ -368,7 +368,7 @@ export default function StakingModal({ isOpen, onClose, novel }: StakingModalPro
             {/* Disclaimer */}
             {!isSuccess && (
               <p className="text-center text-xs text-white/50">
-                Stake to receive share of revenue from novel
+                Stake to receive share of revenue from story
               </p>
             )}
           </div>

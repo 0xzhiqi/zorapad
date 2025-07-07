@@ -74,9 +74,11 @@ const ChapterDropdown = ({
         disabled={disabled}
         className="flex min-w-[200px] items-center justify-between space-x-2 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
       >
-        <span className="truncate text-gray-700">
+        <span className="truncate px-1 text-gray-700">
           {selectedChapter
-            ? `${selectedChapter.title}${selectedChapter.order ? ` (Ch. ${selectedChapter.order})` : ''}`
+            ? // ? `${selectedChapter.title}${selectedChapter.order ? ` (Chapter ${selectedChapter.order})` : ''}`
+              // : 'Select a chapter to read'}
+              `${selectedChapter.title}`
             : 'Select a chapter to read'}
         </span>
         <ChevronDown
@@ -210,8 +212,11 @@ export default function NovelDetailPage() {
 
   if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-gray-50">
-        <Loader2 className="h-8 w-8 animate-spin text-purple-600" />
+      <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-purple-50 to-blue-50">
+        <div className="text-center">
+          <div className="mx-auto mb-4 h-12 w-12 animate-spin rounded-full border-b-2 border-purple-600"></div>
+          <p className="text-purple-600">Loading story...</p>
+        </div>
       </div>
     );
   }
@@ -235,7 +240,7 @@ export default function NovelDetailPage() {
               className="inline-flex items-center gap-2 text-purple-600 transition-colors duration-150 hover:text-purple-800"
             >
               <ChevronLeft className="h-4 w-4" />
-              Back to Novels
+              Back to Stories
             </Link>
           </div>
 

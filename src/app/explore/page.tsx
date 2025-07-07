@@ -44,7 +44,7 @@ export default function ExplorePage() {
       <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-purple-50 to-blue-50">
         <div className="text-center">
           <div className="mx-auto mb-4 h-12 w-12 animate-spin rounded-full border-b-2 border-purple-600"></div>
-          <p className="text-gray-600">Loading published novels...</p>
+          <p className="text-purple-600">Loading published stories...</p>
         </div>
       </div>
     );
@@ -75,18 +75,18 @@ export default function ExplorePage() {
           <div className="mb-8 rounded-3xl border border-white/20 bg-gradient-to-r from-purple-900/10 via-blue-900/10 to-indigo-900/10 p-8 backdrop-blur-sm">
             <div className="mb-4 flex items-center space-x-3">
               <h1 className="bg-gradient-to-r from-purple-600 via-blue-600 to-indigo-600 bg-clip-text text-4xl font-bold text-transparent">
-                Explore Novels
+                Explore Stories
               </h1>
             </div>
             <p className="text-lg text-gray-600">
-              Discover novels published by the community and invest in their coins
+              Discover stories published by the community and invest in their coins
             </p>
           </div>
 
           {novels.length === 0 ? (
             <div className="rounded-3xl bg-white/50 py-12 text-center backdrop-blur-sm">
               <BookOpen className="mx-auto mb-4 h-16 w-16 text-gray-400" />
-              <p className="text-lg text-gray-500">No published novels found</p>
+              <p className="text-lg text-gray-500">No published stories</p>
             </div>
           ) : (
             <div className="grid grid-cols-1 gap-8 md:grid-cols-2 lg:grid-cols-3">
