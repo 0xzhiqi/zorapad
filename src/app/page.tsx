@@ -287,7 +287,10 @@ const Homepage = () => {
           ref={connectButtonRef}
           className="pointer-events-none fixed top-0 left-0 -z-10 opacity-0"
         >
-          <ConnectButton className="[&>div>button]:opacity-0" />
+          <ConnectButton 
+            className="[&>div>button]:opacity-0" 
+            onSuccessfulLogin={() => router.push('/dashboard')}
+          />
         </div>
       )}
 

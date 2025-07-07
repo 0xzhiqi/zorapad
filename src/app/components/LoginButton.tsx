@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 
 import { Loader2 } from 'lucide-react';
 import { signIn, signOut, useSession } from 'next-auth/react';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { SiweMessage } from 'siwe';
 import { createThirdwebClient } from 'thirdweb';
 import { baseSepolia } from 'thirdweb/chains';
@@ -30,14 +30,16 @@ const wallets = [
 
 interface ConnectButtonProps {
   className?: string;
+  onSuccessfulLogin?: () => void;
 }
 
-const LoginButton: React.FC<ConnectButtonProps> = ({ className }) => {
+const LoginButton: React.FC<ConnectButtonProps> = ({ className, onSuccessfulLogin }) => {
   const { data: session, status } = useSession();
   const account = useActiveAccount();
   const activeChain = useActiveWalletChain();
   const [isAuthenticating, setIsAuthenticating] = useState(false);
   const pathname = usePathname();
+  const router = useRouter();
 
   // Determine if we're on the homepage (dark background) or other pages (light background)
   const isHomepage = pathname === '/';
@@ -109,6 +111,14 @@ const LoginButton: React.FC<ConnectButtonProps> = ({ className }) => {
       }
 
       console.log('Client: Authentication successful');
+      
+      // Handle redirect after successful authentication
+      if (onSuccessfulLogin) {
+        onSuccessfulLogin();
+      } else if (isHomepage) {
+        // Only redirect to dashboard if we're on homepage and user just signed in
+        router.push('/dashboard');
+      }
     } catch (error: any) {
       console.error('Client: Wallet authentication error:', error);
       alert(
@@ -142,9 +152,19 @@ const LoginButton: React.FC<ConnectButtonProps> = ({ className }) => {
     }
   }, [account?.address, session]);
 
-  // Handle disconnect
+  // Handle disconnect - ensure proper cleanup
   const handleDisconnect = async () => {
-    await signOut({ redirect: false });
+    try {
+      await signOut({ redirect: false });
+      // Force a small delay to ensure session is cleared
+      setTimeout(() => {
+        window.location.reload();
+      }, 100);
+    } catch (error) {
+      console.error('Disconnect error:', error);
+      // Force reload as fallback
+      window.location.reload();
+    }
   };
 
   return (

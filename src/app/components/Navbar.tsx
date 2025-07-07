@@ -71,7 +71,7 @@ const Navbar: React.FC<NavbarProps> = ({ isMobileMenuOpen, setIsMobileMenuOpen }
   const mobileMenuBorder = isHomepage ? 'border-white/20' : 'border-purple-200';
 
   // Only show Dashboard button if user is authenticated
-  const showDashboard = status !== 'loading' && session;
+  const showDashboard = status === 'authenticated' && session;
 
   return (
     <>
