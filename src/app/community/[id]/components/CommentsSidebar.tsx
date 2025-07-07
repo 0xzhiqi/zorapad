@@ -1021,7 +1021,7 @@ export default function CommentsSidebar({
                               <div className="rounded-lg bg-yellow-50 px-2 py-1">
                                 <div className="mb-1 flex items-center space-x-1">
                                   <Crown className="h-4 w-4 text-yellow-600" />
-                                  <span className="text-sm text-yellow-700">Rewards</span>
+                                  <span className="text-sm text-yellow-700">Rewarded</span>
                                 </div>
                                 <div className="space-y-0.5 text-xs text-yellow-700">
                                   <div className="flex">
@@ -1123,25 +1123,27 @@ export default function CommentsSidebar({
                               >
                                 <p className="mb-2 text-sm text-gray-800">{reply.content}</p>
                                 <div className="flex items-center justify-between">
-                                  <div className="flex items-center space-x-2">
-                                    <div className="flex h-4 w-4 items-center justify-center rounded-full bg-gradient-to-br from-gray-400 to-gray-600 text-xs text-white">
-                                      {(reply.user.name ||
-                                        reply.user.email ||
-                                        'A')[0].toUpperCase()}
+                                  <div className="flex flex-col space-y-1">
+                                    <div className="flex items-center space-x-2">
+                                      <div className="flex h-4 w-4 items-center justify-center rounded-full bg-gradient-to-br from-gray-400 to-gray-600 text-xs text-white">
+                                        {(reply.user.name ||
+                                          reply.user.email ||
+                                          'A')[0].toUpperCase()}
+                                      </div>
+                                      <span className="text-xs text-gray-500">
+                                        {reply.user.name || reply.user.email}
+                                        {novel && reply.user.id === novel.author.id && (
+                                          <span className="ml-2 inline-flex items-center rounded-full bg-purple-100 px-2 py-0.5 text-xs font-medium text-purple-800">
+                                            Author
+                                          </span>
+                                        )}
+                                      </span>
                                     </div>
-                                    <span className="text-xs text-gray-500">
-                                      {reply.user.name || reply.user.email}
-                                      {novel && reply.user.id === novel.author.id && (
-                                        <span className="ml-2 inline-flex items-center rounded-full bg-purple-100 px-2 py-0.5 text-xs font-medium text-purple-800">
-                                          Author
-                                        </span>
-                                      )}
-                                      {reply.isOptimistic && (
-                                        <span className="ml-1 text-purple-500 italic">
-                                          Sending...
-                                        </span>
-                                      )}
-                                    </span>
+                                    {reply.isOptimistic && (
+                                      <span className="ml-6 text-xs text-purple-500 italic">
+                                        Sending...
+                                      </span>
+                                    )}
                                   </div>
                                   <div className="text-right">
                                     <div className="text-xs text-gray-500">

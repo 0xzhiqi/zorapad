@@ -280,8 +280,9 @@ export default function NovelDetailPage() {
               {/* Content section */}
               <div className="p-8" ref={contentRef}>
                 {contentLoading ? (
-                  <div className="flex items-center justify-center py-12">
+                  <div className="flex flex-col items-center justify-center space-y-4 py-12">
                     <Loader2 className="h-6 w-6 animate-spin text-purple-600" />
+                    <p className="text-purple-600">Loading story...</p>
                   </div>
                 ) : (
                   <div className="chapter-content relative">

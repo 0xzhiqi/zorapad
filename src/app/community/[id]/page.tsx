@@ -1476,7 +1476,7 @@ export default function NovelForComments() {
           {/* Back Navigation */}
           <div className="mb-6">
             <Link
-              href="/novels-in-progress"
+              href="/community"
               className="inline-flex items-center gap-2 text-purple-600 transition-colors duration-150 hover:text-purple-800"
             >
               <ChevronLeft className="h-4 w-4" />
@@ -1520,8 +1520,9 @@ export default function NovelForComments() {
               {/* Content section */}
               <div className="p-8" ref={contentRef}>
                 {contentLoading ? (
-                  <div className="flex items-center justify-center py-12">
+                  <div className="flex flex-col items-center justify-center space-y-4 py-12">
                     <Loader2 className="h-6 w-6 animate-spin text-purple-600" />
+                    <p className="text-purple-600">Loading story...</p>
                   </div>
                 ) : (
                   <div className="chapter-content relative">
