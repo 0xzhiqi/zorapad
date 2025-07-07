@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 
-import { tradeCoin } from '@zoralabs/coins-sdk';
+import { createTradeCall, tradeCoin } from '@zoralabs/coins-sdk';
 import { AlertTriangle, ArrowDown, ArrowUp, CheckCircle, Wallet, X } from 'lucide-react';
 import { useActiveAccount, useActiveWalletConnectionStatus } from 'thirdweb/react';
 import { Address, createPublicClient, createWalletClient, custom, http, parseEther } from 'viem';
@@ -32,6 +32,7 @@ export default function TradingModal({ isOpen, onClose, novel }: TradingModalPro
   const [estimatedOutput, setEstimatedOutput] = useState<string>('');
   const [ethBalance, setEthBalance] = useState<string>('0');
   const [tokenBalance, setTokenBalance] = useState<string>('0');
+  const [isLoadingQuote, setIsLoadingQuote] = useState(false);
 
   const account = useActiveAccount();
   const connectionStatus = useActiveWalletConnectionStatus();
@@ -360,39 +361,111 @@ export default function TradingModal({ isOpen, onClose, novel }: TradingModalPro
     onClose();
   };
 
-  // Function to estimate output without executing trade (simplified)
+  // Real estimation using createTradeCall instead of mock
   const estimateOutput = async () => {
-    if (!amount || !novel.coinAddress) return;
+    if (!amount || !novel.coinAddress || !account) return;
+
+    setIsLoadingQuote(true);
+    setError(null);
+    setWarning(null);
 
     try {
-      // For now, we'll provide a simple estimation
-      // In a real implementation, you might call a separate quote endpoint
-      const inputAmount = parseFloat(amount);
-      const estimatedRate = tradeType === 'buy' ? 1000 : 0.001; // Simple mock rate
-      const estimated = inputAmount * estimatedRate;
+      const tradeParameters = {
+        sell:
+          tradeType === 'buy'
+            ? { type: 'eth' as const }
+            : { type: 'erc20' as const, address: novel.coinAddress as Address },
+        buy:
+          tradeType === 'buy'
+            ? { type: 'erc20' as const, address: novel.coinAddress as Address }
+            : { type: 'eth' as const },
+        amountIn: parseEther(amount),
+        slippage: 0.05, // 5% slippage tolerance
+        sender: account.address as Address,
+      };
 
-      setEstimatedOutput((estimated * 1e18).toString());
-      setError(null);
-      setWarning(null);
-    } catch (error) {
-      console.error('Estimation error:', error);
-      setEstimatedOutput('');
-      if (amount && parseFloat(amount) > 0) {
-        setWarning('Unable to estimate output. This is a simplified estimate.');
+      console.log('Getting quote for trade parameters:', tradeParameters);
+
+      // Get real quote from the SDK
+      const quote = await createTradeCall(tradeParameters);
+
+      console.log('Real quote response:', quote);
+
+      // Extract the output amount from the quote
+      // The exact structure may vary, so we'll check multiple possible fields
+      if (quote && typeof quote === 'object') {
+        const possibleOutputFields = [
+          'amountOut',
+          'outputAmount',
+          'quote',
+          'amountReceived',
+          'expectedOutput',
+          'estimatedOutput',
+        ];
+
+        let outputAmount;
+        for (const field of possibleOutputFields) {
+          if ((quote as any)[field]) {
+            outputAmount = (quote as any)[field];
+            console.log(`Found output amount in field '${field}':`, outputAmount);
+            break;
+          }
+        }
+
+        // Also check if quote has nested structures
+        if (!outputAmount && (quote as any).call) {
+          console.log('Quote call structure:', (quote as any).call);
+        }
+
+        if (outputAmount) {
+          setEstimatedOutput(outputAmount.toString());
+          setError(null);
+          setWarning(null);
+        } else {
+          // If no output amount found, log the quote structure for debugging
+          console.log('Available quote fields:', Object.keys(quote));
+          console.log('Full quote object:', quote);
+          setWarning('Quote received but unable to extract output amount');
+          setEstimatedOutput('');
+        }
+      } else {
+        console.log('Unexpected quote response type:', typeof quote);
+        setWarning('Unexpected quote response format');
+        setEstimatedOutput('');
       }
+    } catch (error: any) {
+      console.error('Real quote error:', error);
+      setEstimatedOutput('');
+
+      // Provide helpful error messages based on error type
+      if (error.message?.includes('Quote failed') || error.message?.includes('500')) {
+        setWarning(
+          'Unable to get quote - this token may not be tradeable on Base Sepolia or lacks liquidity'
+        );
+      } else if (error.message?.includes('network') || error.message?.includes('Network')) {
+        setWarning('Network error while getting quote - please check connection');
+      } else if (error.message?.includes('insufficient')) {
+        setWarning('Insufficient liquidity for this trade amount');
+      } else if (error.message?.includes('unsupported') || error.message?.includes('Unsupported')) {
+        setWarning('Base Sepolia may not be supported yet - SDK currently supports Base mainnet');
+      } else {
+        setWarning(`Quote error: ${error.message || 'Unable to get price estimate'}`);
+      }
+    } finally {
+      setIsLoadingQuote(false);
     }
   };
 
   // Trigger estimation when amount or trade type changes
   useEffect(() => {
-    if (amount && parseFloat(amount) > 0) {
-      const timeoutId = setTimeout(estimateOutput, 500);
+    if (amount && parseFloat(amount) > 0 && account && novel.coinAddress) {
+      const timeoutId = setTimeout(estimateOutput, 800); // Slightly longer delay for API calls
       return () => clearTimeout(timeoutId);
     } else {
       setEstimatedOutput('');
       setWarning(null);
     }
-  }, [amount, tradeType]);
+  }, [amount, tradeType, account, novel.coinAddress]);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
@@ -540,12 +613,14 @@ export default function TradingModal({ isOpen, onClose, novel }: TradingModalPro
                 </div>
                 <div className="flex justify-between text-xs text-white/50">
                   <span>Minimum: 0.001 {tradeType === 'buy' ? 'ETH' : novel.coinSymbol}</span>
-                  {estimatedOutput && (
+                  {isLoadingQuote ? (
+                    <span className="text-blue-400">Getting quote...</span>
+                  ) : estimatedOutput ? (
                     <span className="text-green-400">
                       ≈ {(Number(estimatedOutput) / 1e18).toFixed(6)}{' '}
                       {tradeType === 'buy' ? novel.coinSymbol : 'ETH'}
                     </span>
-                  )}
+                  ) : null}
                 </div>
                 {/* Balance validation warnings */}
                 {amount && parseFloat(amount) > 0 && (
