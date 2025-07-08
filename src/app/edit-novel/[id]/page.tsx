@@ -464,17 +464,24 @@ const ChapterEditor = ({
   const [editorContent, setEditorContent] = useState('');
   const [loadingContent, setLoadingContent] = useState(false);
   const [editorKey, setEditorKey] = useState(0);
+  // Add state to track original values
+  const [originalTitle, setOriginalTitle] = useState('');
+  const [originalContent, setOriginalContent] = useState('');
 
   useEffect(() => {
     const loadContent = async () => {
       if (!chapter) {
         setTitle('');
         setEditorContent('');
+        setOriginalTitle('');
+        setOriginalContent('');
         setEditorKey((prev) => prev + 1);
         return;
       }
 
-      setTitle(chapter.title || '');
+      const chapterTitle = chapter.title || '';
+      setTitle(chapterTitle);
+      setOriginalTitle(chapterTitle);
 
       if (chapter.contentUrl) {
         setLoadingContent(true);
@@ -482,19 +489,24 @@ const ChapterEditor = ({
           const response = await fetch(`/api/chapters/${chapter.id}/content`);
           if (response.ok) {
             const data = await response.json();
-            setEditorContent(data.content || '');
+            const content = data.content || '';
+            setEditorContent(content);
+            setOriginalContent(content);
           } else {
             console.error('Failed to load chapter content:', response.statusText);
             setEditorContent('');
+            setOriginalContent('');
           }
         } catch (error) {
           console.error('Error loading chapter content:', error);
           setEditorContent('');
+          setOriginalContent('');
         } finally {
           setLoadingContent(false);
         }
       } else {
         setEditorContent('');
+        setOriginalContent('');
       }
 
       setEditorKey((prev) => prev + 1);
@@ -510,6 +522,12 @@ const ChapterEditor = ({
   const handleContentChange = (newContent: string) => {
     setEditorContent(newContent);
   };
+
+  // Check if there are any changes
+  const hasChanges = title !== originalTitle || editorContent !== originalContent;
+  
+  // Calculate if save button should be disabled
+  const isSaveDisabled = isLoading || !title.trim() || (chapter ? !hasChanges : !hasChanges);
 
   if (loadingContent) {
     return (
@@ -533,7 +551,7 @@ const ChapterEditor = ({
         <div className="ml-4 flex space-x-2">
           <button
             onClick={handleSave}
-            disabled={isLoading || !title.trim()}
+            disabled={isSaveDisabled}
             className="flex items-center rounded-lg bg-purple-600 px-4 py-2 text-white hover:bg-purple-700 disabled:opacity-50"
           >
             {isLoading ? (
