@@ -966,7 +966,10 @@ export default function RequestsSidebar({
         const newStats: Record<string, ReplyStats> = {};
         statsResults.forEach((result) => {
           if (result) {
-            newStats[result.replyId] = result.stats;
+            newStats[result.replyId] = {
+              ...result.stats,
+              totalStaked: parseFloat(result.stats.totalStaked) || 0
+            };
           }
         });
         setReplyStats(newStats);
