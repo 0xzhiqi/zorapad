@@ -188,6 +188,9 @@ const Homepage = () => {
     },
   ];
 
+  // Array of specific like counts for trending novels
+  const likeCounts = [283, 573, 387, 825];
+
   return (
     <div className="relative min-h-screen overflow-hidden bg-gradient-to-br from-purple-900 via-blue-900 to-indigo-900">
       {/* SVG Gradient Definition */}
@@ -335,7 +338,7 @@ const Homepage = () => {
                     <div className="flex items-center space-x-6 text-white/50">
                       <div className="flex items-center space-x-2">
                         <Heart className="h-5 w-5 text-pink-400" />
-                        <span>{(1500 + index * 200).toLocaleString()}</span>
+                        <span>{likeCounts[index]?.toLocaleString() || '0'}</span>
                       </div>
                       <div className="flex items-center space-x-2">
                         <MessageCircle className="h-5 w-5 text-blue-400" />
