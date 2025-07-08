@@ -24,7 +24,11 @@ export async function GET() {
           select: {
             id: true,
             title: true,
+            order: true,
             wordCount: true,
+          },
+          orderBy: {
+            order: 'asc',
           },
         },
       },

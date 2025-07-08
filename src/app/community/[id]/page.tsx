@@ -885,7 +885,10 @@ export default function NovelForComments() {
         setNovel(foundNovel); // This will now include novelAddress and coinTransactionHash
 
         if (foundNovel.chapters.length > 0) {
-          setSelectedChapter(foundNovel.chapters[0]);
+          // Find the chapter with the lowest order, fallback to first chapter if no order
+          const firstChapter = foundNovel.chapters.find((chapter: Chapter) => chapter.order === 1) || 
+                              foundNovel.chapters.sort((a: Chapter, b: Chapter) => (a.order || 0) - (b.order || 0))[0];
+          setSelectedChapter(firstChapter);
         }
       } catch (err) {
         setError(err instanceof Error ? err.message : 'An error occurred');
