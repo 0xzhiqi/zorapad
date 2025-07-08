@@ -102,14 +102,14 @@ const MyNovels = () => {
         <div className="mb-4 flex items-end justify-between">
           <div className="flex items-center space-x-2">
             <BookOpenText className="h-6 w-6 text-purple-600" />
-            <h2 className="text-xl font-semibold text-gray-900">My Novels</h2>
+            <h2 className="text-xl font-semibold text-gray-900">My Stories</h2>
           </div>
           <button
             onClick={() => router.push('./launch-new-novel')}
             className="flex items-center space-x-2 rounded-lg border-2 border-purple-200 bg-purple-100 px-3 py-1 font-semibold text-purple-600 backdrop-blur-sm transition-all duration-300 hover:scale-105 hover:bg-purple-200"
           >
             <Plus className="h-5 w-5" />
-            <span>Launch Novel</span>
+            <span>Launch Story</span>
           </button>
         </div>
         <div className="rounded-lg border border-gray-200 bg-gray-50 p-8">
@@ -130,14 +130,14 @@ const MyNovels = () => {
         <div className="mb-4 flex items-end justify-between">
           <div className="flex items-center space-x-2">
             <BookOpen className="h-6 w-6 text-purple-600" />
-            <h2 className="text-xl font-semibold text-gray-900">My Novels</h2>
+            <h2 className="text-xl font-semibold text-gray-900">My Stories</h2>
           </div>
           <button
             onClick={() => router.push('./launch-new-novel')}
             className="flex items-center space-x-2 rounded-lg border-2 border-purple-200 bg-purple-100 px-3 py-1 font-semibold text-purple-600 backdrop-blur-sm transition-all duration-300 hover:scale-105 hover:bg-purple-200"
           >
             <Plus className="h-5 w-5" />
-            <span>Launch Novel</span>
+            <span>Launch Story</span>
           </button>
         </div>
         <div className="rounded-lg border border-gray-200 bg-gray-50 p-8">
@@ -154,14 +154,14 @@ const MyNovels = () => {
       <div className="mb-4 flex items-end justify-between">
         <div className="flex items-center space-x-2">
           <BookOpenText className="h-6 w-6 text-purple-600" />
-          <h2 className="text-xl font-semibold text-gray-900">My Novels</h2>
+          <h2 className="text-xl font-semibold text-gray-900">My Stories</h2>
         </div>
         <button
           onClick={() => router.push('./launch-new-novel')}
           className="flex items-center space-x-2 rounded-lg border-2 border-purple-200 bg-purple-100 px-3 py-1 font-semibold text-purple-600 backdrop-blur-sm transition-all duration-300 hover:scale-105 hover:bg-purple-200"
         >
           <Plus className="h-5 w-5" />
-          <span>Launch Novel</span>
+          <span>Launch Story</span>
         </button>
       </div>
 
@@ -170,7 +170,7 @@ const MyNovels = () => {
           <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-purple-100">
             <BookOpenText className="h-8 w-8 text-purple-600" />
           </div>
-          <p className="mb-2 text-lg font-medium text-gray-700">No Novels Created Yet</p>
+          <p className="mb-2 text-lg font-medium text-gray-700">No Story Created Yet</p>
           <p className="mx-auto mb-6 max-w-lg text-sm text-gray-600">
             Start your writing journey by creating your first novel and connect with readers who
             will support your creative work
@@ -180,7 +180,7 @@ const MyNovels = () => {
             className="inline-flex items-center rounded-lg bg-purple-600 px-4 py-2 text-sm font-medium text-white transition-colors duration-200 hover:bg-purple-700"
           >
             <Plus className="mr-2 h-4 w-4" />
-            Launch Novel
+            Launch Story
             <ArrowRight className="ml-2 h-4 w-4" />
           </button>
         </div>
