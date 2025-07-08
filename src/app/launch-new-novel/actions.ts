@@ -131,9 +131,3 @@ export async function deleteNovel(novelId: string) {
     };
   }
 }
-
-// Keep the original function for backward compatibility
-export async function createNovel(data: any) {
-  // This function is kept for backward compatibility but won't be used in the new flow
-  return { success: false, error: 'Use the new 4-step process instead' };
-}

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+
 import { prisma } from '@/lib/prisma';
 
 // Helper function to validate MongoDB ObjectID
@@ -6,7 +7,7 @@ function isValidObjectId(id: string): boolean {
   return /^[0-9a-fA-F]{24}$/.test(id);
 }
 
-export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id: replyId } = await params;
 
@@ -52,7 +53,7 @@ export async function GET(request: NextRequest, { params }: { params: { id: stri
     const totalUpvotes = upvoteCount + stakeCount;
 
     // Check if reply is awarded
-    const isAwarded = !!(reply?.awardTransactionHash);
+    const isAwarded = !!reply?.awardTransactionHash;
 
     return NextResponse.json({
       upvotes: totalUpvotes,

@@ -1,23 +1,11 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 
 import Highlight from '@tiptap/extension-highlight';
 import { Editor, EditorContent, useEditor } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
-import { getCoin } from '@zoralabs/coins-sdk';
-import {
-  ChevronDown,
-  ChevronLeft,
-  Loader2,
-  MessageCircle,
-  MessageCircleQuestion,
-  Plus,
-  Reply,
-  Send,
-  Wallet,
-  X,
-} from 'lucide-react';
+import { ChevronDown, ChevronLeft, Loader2, Plus, Reply, Wallet, X } from 'lucide-react';
 import { useSession } from 'next-auth/react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
@@ -26,15 +14,7 @@ import { createThirdwebClient } from 'thirdweb';
 import { baseSepolia as thirdwebBaseSepolia } from 'thirdweb/chains';
 import { approve } from 'thirdweb/extensions/erc20';
 import { useActiveAccount } from 'thirdweb/react';
-import {
-  bytesToHex,
-  createPublicClient,
-  formatEther,
-  http,
-  keccak256,
-  parseEther,
-  stringToBytes,
-} from 'viem';
+import { createPublicClient, formatEther, http, keccak256, parseEther, stringToBytes } from 'viem';
 import { baseSepolia } from 'viem/chains';
 
 import CommentsButton from './components/CommentsButton';
@@ -378,7 +358,7 @@ const RequestDialog = ({
 
         <div className="mb-4 rounded-lg border border-green-200 bg-green-100 p-3">
           <p className="mb-1 text-sm font-medium text-gray-700">Selected text:</p>
-          <p className="text-sm font-medium text-green-800">"{selection.text}"</p>
+          <p className="text-sm font-medium text-green-800">&quot;{selection.text}&quot;</p>
         </div>
 
         <form onSubmit={handleSubmit}>
@@ -506,7 +486,7 @@ const CommentDialog = ({
 
         <div className="mb-4 rounded-lg bg-purple-100 p-3">
           <p className="mb-1 text-sm font-medium text-gray-700">Selected text:</p>
-          <p className="text-sm font-medium text-purple-800">"{selection.text}"</p>
+          <p className="text-sm font-medium text-purple-800">&quot;{selection.text}&quot;</p>
         </div>
 
         <form onSubmit={handleSubmit}>
@@ -545,35 +525,35 @@ const CommentDialog = ({
   );
 };
 
-const formatDateTime = (dateString: string) => {
-  const date = new Date(dateString);
-  const now = new Date();
-  const diffInHours = (now.getTime() - date.getTime()) / (1000 * 60 * 60);
+// const formatDateTime = (dateString: string) => {
+//   const date = new Date(dateString);
+//   const now = new Date();
+//   const diffInHours = (now.getTime() - date.getTime()) / (1000 * 60 * 60);
 
-  if (diffInHours < 24) {
-    return {
-      date: 'Today',
-      time: date.toLocaleTimeString('en-US', {
-        hour: 'numeric',
-        minute: '2-digit',
-        hour12: true,
-      }),
-    };
-  } else {
-    return {
-      date: date.toLocaleDateString('en-US', {
-        month: 'short',
-        day: 'numeric',
-        year: date.getFullYear() !== now.getFullYear() ? 'numeric' : undefined,
-      }),
-      time: date.toLocaleTimeString('en-US', {
-        hour: 'numeric',
-        minute: '2-digit',
-        hour12: true,
-      }),
-    };
-  }
-};
+//   if (diffInHours < 24) {
+//     return {
+//       date: 'Today',
+//       time: date.toLocaleTimeString('en-US', {
+//         hour: 'numeric',
+//         minute: '2-digit',
+//         hour12: true,
+//       }),
+//     };
+//   } else {
+//     return {
+//       date: date.toLocaleDateString('en-US', {
+//         month: 'short',
+//         day: 'numeric',
+//         year: date.getFullYear() !== now.getFullYear() ? 'numeric' : undefined,
+//       }),
+//       time: date.toLocaleTimeString('en-US', {
+//         hour: 'numeric',
+//         minute: '2-digit',
+//         hour12: true,
+//       }),
+//     };
+//   }
+// };
 
 export default function NovelForComments() {
   const params = useParams();
@@ -583,7 +563,6 @@ export default function NovelForComments() {
 
   const [novel, setNovel] = useState<Novel | null>(null);
   const [selectedChapter, setSelectedChapter] = useState<Chapter | null>(null);
-  const [chapterContent, setChapterContent] = useState<string>('');
   const [loading, setLoading] = useState(true);
   const [contentLoading, setContentLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -800,7 +779,7 @@ export default function NovelForComments() {
             endPos = editor.state.selection.to;
           } else {
             // Manual calculation as last resort
-            const editorText = editor.getText();
+            // const editorText = editor.getText();
             const beforeText =
               range.startContainer.textContent?.substring(0, range.startOffset) || '';
 
@@ -965,7 +944,7 @@ export default function NovelForComments() {
   }, [novel?.coinAddress, session?.user?.walletAddress]);
 
   // Fetch requests
-  const fetchRequests = async () => {
+  const fetchRequests = useCallback(async () => {
     if (!selectedChapter) return;
 
     try {
@@ -977,12 +956,12 @@ export default function NovelForComments() {
     } catch (error) {
       console.error('Error fetching requests:', error);
     }
-  };
+  }, [selectedChapter]);
 
   // Fetch requests when chapter changes
   useEffect(() => {
     fetchRequests();
-  }, [selectedChapter]);
+  }, [selectedChapter, fetchRequests]);
 
   // Fetch chapter content, comments, and requests when selected chapter changes
   useEffect(() => {
@@ -1004,7 +983,7 @@ export default function NovelForComments() {
         const contentData = await contentResponse.json();
         const content = contentData.content || '<p>No content available for this chapter.</p>';
 
-        setChapterContent(content);
+        console.log('Chapter content loaded:', content);
 
         if (editor) {
           editor.commands.setContent(content);
@@ -1022,7 +1001,6 @@ export default function NovelForComments() {
       } catch (err) {
         console.error('Error fetching chapter content:', err);
         const errorContent = '<p>Error loading chapter content.</p>';
-        setChapterContent(errorContent);
         if (editor) {
           editor.commands.setContent(errorContent);
         }
@@ -1032,7 +1010,7 @@ export default function NovelForComments() {
     };
 
     fetchChapterContent();
-  }, [selectedChapter, editor]);
+  }, [selectedChapter, editor, fetchRequests]);
 
   const handleAddComment = async (content: string) => {
     if (!selection || !selectedChapter || !session) return;
@@ -1055,7 +1033,6 @@ export default function NovelForComments() {
       });
 
       if (response.status === 409) {
-        const data = await response.json();
         alert(
           'A comment already exists for this text selection. Please reply to the existing comment instead.'
         );
@@ -1249,14 +1226,14 @@ export default function NovelForComments() {
   };
 
   const handleReply = async (commentId: string, content: string) => {
-    if (!session) return;
+    if (!session?.user) return;
 
     // Optimistic update
     const tempReply = {
       id: `temp-${Date.now()}`,
       content,
       user: {
-        id: session.user.id,
+        id: session.user.id || '',
         name: session.user.name || session.user.email || 'You',
         email: session.user.email || '',
       },
@@ -1322,14 +1299,14 @@ export default function NovelForComments() {
 
   // Add request reply handler
   const handleRequestReply = async (requestId: string, content: string) => {
-    if (!session) return;
+    if (!session?.user) return;
 
     // Optimistic update
     const tempReply = {
       id: `temp-${Date.now()}`,
       content,
       user: {
-        id: session.user.id,
+        id: session.user.id || '',
         name: session.user.name || session.user.email || 'You',
         email: session.user.email || '',
       },
@@ -1384,7 +1361,7 @@ export default function NovelForComments() {
     }
   };
 
-  const highlightCommentedText = () => {
+  const highlightCommentedText = useCallback(() => {
     if (!editor || (!comments.length && !requests.length)) return;
 
     // Clear all existing highlights first
@@ -1434,14 +1411,14 @@ export default function NovelForComments() {
 
     // Clear selection after highlighting
     editor.commands.blur();
-  };
+  }, [editor, comments, requests]);
 
   // Apply highlighting when comments or requests change
   useEffect(() => {
     if (editor && (comments.length > 0 || requests.length > 0)) {
       highlightCommentedText();
     }
-  }, [comments, requests, editor]);
+  }, [comments, requests, editor, highlightCommentedText]);
 
   // Check if current user is the author
   const isAuthor = session?.user?.id === novel?.author?.id;

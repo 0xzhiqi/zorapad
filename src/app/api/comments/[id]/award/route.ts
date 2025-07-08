@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 
-export async function POST(request: NextRequest, { params }: { params: { id: string } }) {
+export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const session = await auth();
     if (!session?.user?.id) {
@@ -12,7 +12,7 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
 
     const { id: commentId } = await params;
     const body = await request.json();
-    const { bountyAmount, stakersReward, transactionHash, winnerWalletAddress } = body;
+    const { bountyAmount, stakersReward, transactionHash } = body;
 
     // Verify the user is the author of the novel
     const comment = await prisma.comment.findUnique({
@@ -22,12 +22,12 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
           include: {
             novel: {
               include: {
-                author: true
-              }
-            }
-          }
-        }
-      }
+                author: true,
+              },
+            },
+          },
+        },
+      },
     });
 
     if (!comment || comment.chapter.novel.author.id !== session.user.id) {

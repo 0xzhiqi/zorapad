@@ -103,13 +103,13 @@ const SimpleEditor = ({
         class: 'focus:outline-none min-h-[300px] p-4 prose prose-sm max-w-none',
       },
       handleDOMEvents: {
-        mousedown: (view, event) => {
+        mousedown: () => {
           return false;
         },
-        mouseup: (view, event) => {
+        mouseup: () => {
           return false;
         },
-        keydown: (view, event) => {
+        keydown: () => {
           return false;
         },
       },
@@ -515,7 +515,7 @@ const ChapterEditor = ({
     return (
       <div className="flex items-center justify-center p-8">
         <Loader2 className="h-6 w-6 animate-spin text-purple-600" />
-        <span className="ml-2 text-gray-600">Loading chapter content...</span>
+        <span className="ml-2 text-purple-600">Loading chapter content...</span>
       </div>
     );
   }
@@ -845,8 +845,8 @@ export default function EditNovelPage() {
               <div className="rounded-lg border border-gray-200 bg-gray-50 p-8">
                 <div className="text-center">
                   <div className="flex flex-col items-center justify-center space-y-2">
-                    <Loader2 className="h-5 w-5 animate-spin text-gray-500" />
-                    <p className="text-gray-500">Loading novel...</p>
+                    <Loader2 className="h-5 w-5 animate-spin text-purple-500" />
+                    <p className="text-purple-500">Loading story...</p>
                   </div>
                 </div>
               </div>

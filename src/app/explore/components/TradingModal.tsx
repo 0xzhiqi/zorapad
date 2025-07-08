@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { createTradeCall, tradeCoin } from '@zoralabs/coins-sdk';
 import { AlertTriangle, ArrowDown, ArrowUp, CheckCircle, Wallet, X } from 'lucide-react';
@@ -22,6 +22,51 @@ type TradeStep = {
   status: 'pending' | 'active' | 'completed' | 'error';
 };
 
+// Define proper error types
+interface TradeError extends Error {
+  message: string;
+}
+
+// Updated QuoteResponse interface to match actual SDK response
+interface QuoteResponse {
+  success?: boolean;
+  call?: {
+    data: string;
+    value: string;
+    target: string;
+  };
+  permits?: Array<{
+    signature: string;
+    permit: {
+      sigDeadline: string;
+      spender: string;
+      details: {
+        token: string;
+        amount: string;
+        expiration: number;
+        nonce: number;
+      };
+    };
+  }>;
+  trade?: {
+    amountOut: string;
+    slippage: number;
+    tokenIn?: {
+      type?: string;
+      address?: string;
+    };
+  };
+  quote?: {
+    amountOut: string;
+    slippage: number;
+    tokenIn?: {
+      type?: string;
+      address?: string;
+    };
+  };
+  [key: string]: unknown;
+}
+
 export default function TradingModal({ isOpen, onClose, novel }: TradingModalProps) {
   const [tradeType, setTradeType] = useState<'buy' | 'sell'>('buy');
   const [amount, setAmount] = useState('');
@@ -37,15 +82,20 @@ export default function TradingModal({ isOpen, onClose, novel }: TradingModalPro
   const account = useActiveAccount();
   const connectionStatus = useActiveWalletConnectionStatus();
 
-  const erc20Abi = [
-    {
-      inputs: [{ name: '_owner', type: 'address' }],
-      name: 'balanceOf',
-      outputs: [{ name: 'balance', type: 'uint256' }],
-      stateMutability: 'view',
-      type: 'function',
-    },
-  ] as const;
+  // Move erc20Abi outside component or use useMemo to prevent dependency issues
+  const erc20Abi = useMemo(
+    () =>
+      [
+        {
+          inputs: [{ name: '_owner', type: 'address' }],
+          name: 'balanceOf',
+          outputs: [{ name: 'balance', type: 'uint256' }],
+          stateMutability: 'view',
+          type: 'function',
+        },
+      ] as const,
+    []
+  );
 
   useEffect(() => {
     if (isOpen && account) {
@@ -82,7 +132,98 @@ export default function TradingModal({ isOpen, onClose, novel }: TradingModalPro
       };
       fetchBalances();
     }
-  }, [isOpen, account, novel.coinAddress]);
+  }, [isOpen, account, novel.coinAddress, erc20Abi]);
+
+  const estimateOutput = useCallback(async () => {
+    if (!amount || !novel.coinAddress || !account) return;
+
+    setIsLoadingQuote(true);
+    setError(null);
+    setWarning(null);
+
+    try {
+      const tradeParameters = {
+        sell:
+          tradeType === 'buy'
+            ? { type: 'eth' as const }
+            : { type: 'erc20' as const, address: novel.coinAddress as Address },
+        buy:
+          tradeType === 'buy'
+            ? { type: 'erc20' as const, address: novel.coinAddress as Address }
+            : { type: 'eth' as const },
+        amountIn: parseEther(amount),
+        slippage: 0.05, // 5% slippage tolerance
+        sender: account.address as Address,
+      };
+
+      console.log('Getting quote for trade parameters:', tradeParameters);
+
+      // Get real quote from the SDK
+      const quote = (await createTradeCall(tradeParameters)) as QuoteResponse;
+
+      console.log('Real quote response:', quote);
+
+      // Extract the output amount from the quote
+      let outputAmount: string | undefined;
+
+      // Check for amountOut in quote or trade objects
+      if (quote.quote?.amountOut) {
+        outputAmount = quote.quote.amountOut;
+      } else if (quote.trade?.amountOut) {
+        outputAmount = quote.trade.amountOut;
+      }
+
+      if (outputAmount) {
+        setEstimatedOutput(outputAmount.toString());
+        setError(null);
+        setWarning(null);
+      } else {
+        // If no output amount found, log the quote structure for debugging
+        console.log('Available quote fields:', Object.keys(quote));
+        console.log('Full quote object:', quote);
+        setWarning('Quote received but unable to extract output amount');
+        setEstimatedOutput('');
+      }
+    } catch (error: unknown) {
+      const tradeError = error as TradeError;
+      console.error('Real quote error:', tradeError);
+      setEstimatedOutput('');
+
+      // Provide helpful error messages based on error type
+      if (tradeError.message?.includes('Quote failed') || tradeError.message?.includes('500')) {
+        setWarning(
+          'Unable to get quote - this token may not be tradeable on Base Sepolia or lacks liquidity'
+        );
+      } else if (
+        tradeError.message?.includes('network') ||
+        tradeError.message?.includes('Network')
+      ) {
+        setWarning('Network error while getting quote - please check connection');
+      } else if (tradeError.message?.includes('insufficient')) {
+        setWarning('Insufficient liquidity for this trade amount');
+      } else if (
+        tradeError.message?.includes('unsupported') ||
+        tradeError.message?.includes('Unsupported')
+      ) {
+        setWarning('Base Sepolia may not be supported yet - SDK currently supports Base mainnet');
+      } else {
+        setWarning(`Quote error: ${tradeError.message || 'Unable to get price estimate'}`);
+      }
+    } finally {
+      setIsLoadingQuote(false);
+    }
+  }, [amount, tradeType, account, novel.coinAddress]);
+
+  // Trigger estimation when amount or trade type changes
+  useEffect(() => {
+    if (amount && parseFloat(amount) > 0 && account && novel.coinAddress) {
+      const timeoutId = setTimeout(estimateOutput, 800); // Slightly longer delay for API calls
+      return () => clearTimeout(timeoutId);
+    } else {
+      setEstimatedOutput('');
+      setWarning(null);
+    }
+  }, [amount, tradeType, account, novel.coinAddress, estimateOutput]);
 
   if (!isOpen) return null;
 
@@ -187,7 +328,7 @@ export default function TradingModal({ isOpen, onClose, novel }: TradingModalPro
         chain: baseSepolia,
         account: account.address as Address,
         transport: custom({
-          async request({ method, params }) {
+          async request({ method, params }: { method: string; params?: unknown[] }) {
             console.log('Custom transport method:', method);
 
             if (method === 'eth_requestAccounts') {
@@ -197,22 +338,22 @@ export default function TradingModal({ isOpen, onClose, novel }: TradingModalPro
               return [account!.address];
             }
             if (method === 'eth_sendTransaction') {
-              const tx = params?.[0];
+              const tx = params?.[0] as Record<string, unknown>;
               if (!tx) throw new Error('No transaction provided');
 
               console.log('Sending transaction via Thirdweb:', tx);
               const result = await account!.sendTransaction({
-                to: tx.to,
-                value: tx.value ? BigInt(tx.value) : undefined,
-                data: tx.data,
-                gas: tx.gas ? BigInt(tx.gas) : undefined,
-                gasPrice: tx.gasPrice ? BigInt(tx.gasPrice) : undefined,
+                to: tx.to as string,
+                value: tx.value ? BigInt(tx.value as string) : undefined,
+                data: tx.data as `0x${string}`, // Fix: Cast to hex string type
+                gas: tx.gas ? BigInt(tx.gas as string) : undefined,
+                gasPrice: tx.gasPrice ? BigInt(tx.gasPrice as string) : undefined,
                 chainId: baseSepolia.id,
               });
               return result.transactionHash;
             }
             if (method === 'personal_sign' || method === 'eth_sign') {
-              const message = params?.[0];
+              const message = params?.[0] as string;
               if (!message) throw new Error('No message provided');
               return await account!.signMessage({ message });
             }
@@ -272,20 +413,21 @@ export default function TradingModal({ isOpen, onClose, novel }: TradingModalPro
       try {
         result = await tradeCoin(tradeConfig);
         console.log('Trade result:', result);
-      } catch (tradeError: any) {
-        console.error('Detailed trade error:', tradeError);
+      } catch (tradeError: unknown) {
+        const error = tradeError as TradeError;
+        console.error('Detailed trade error:', error);
 
         // More specific error handling
-        if (tradeError.message?.includes('Quote failed') || tradeError.message?.includes('500')) {
+        if (error.message?.includes('Quote failed') || error.message?.includes('500')) {
           throw new Error(
             `Trading failed: This coin (${novel.coinAddress}) may not be tradeable on Base Sepolia yet, or there may be insufficient liquidity. Please verify the coin exists and has trading enabled.`
           );
-        } else if (tradeError.message?.includes('network')) {
+        } else if (error.message?.includes('network')) {
           throw new Error('Network error. Please check your connection and try again.');
-        } else if (tradeError.message?.includes('rejected')) {
+        } else if (error.message?.includes('rejected')) {
           throw new Error('Transaction was rejected by user.');
         } else {
-          throw new Error(`Trading failed: ${tradeError.message || 'Unknown error occurred'}`);
+          throw new Error(`Trading failed: ${error.message || 'Unknown error occurred'}`);
         }
       }
 
@@ -312,28 +454,29 @@ export default function TradingModal({ isOpen, onClose, novel }: TradingModalPro
         setWarning(null);
         setEstimatedOutput('');
       }, 2000);
-    } catch (error: any) {
-      console.error('Trading error:', error);
+    } catch (error: unknown) {
+      const tradeError = error as TradeError;
+      console.error('Trading error:', tradeError);
 
       let errorMessage = 'Trading failed. Please try again.';
 
       // Handle specific error cases
-      if (error.message?.includes('Quote failed') || error.message?.includes('500')) {
+      if (tradeError.message?.includes('Quote failed') || tradeError.message?.includes('500')) {
         errorMessage =
           'This coin cannot be traded yet. It may not exist on Base Sepolia, lack liquidity, or trading may not be enabled. Please verify the coin contract address.';
       } else if (
-        error.message?.includes('insufficient') ||
-        error.message?.includes('Insufficient')
+        tradeError.message?.includes('insufficient') ||
+        tradeError.message?.includes('Insufficient')
       ) {
-        errorMessage = error.message; // Use the specific insufficient balance message
-      } else if (error.message?.includes('User rejected')) {
+        errorMessage = tradeError.message; // Use the specific insufficient balance message
+      } else if (tradeError.message?.includes('User rejected')) {
         errorMessage = 'Transaction was rejected by user.';
-      } else if (error.message?.includes('Invalid coin address')) {
+      } else if (tradeError.message?.includes('Invalid coin address')) {
         errorMessage = 'Invalid coin contract address.';
-      } else if (error.message?.includes('network')) {
+      } else if (tradeError.message?.includes('network')) {
         errorMessage = 'Network error. Please check your connection and try again.';
-      } else if (error.message) {
-        errorMessage = error.message;
+      } else if (tradeError.message) {
+        errorMessage = tradeError.message;
       }
 
       setError(errorMessage);
@@ -361,111 +504,16 @@ export default function TradingModal({ isOpen, onClose, novel }: TradingModalPro
     onClose();
   };
 
-  // Real estimation using createTradeCall instead of mock
-  const estimateOutput = async () => {
-    if (!amount || !novel.coinAddress || !account) return;
-
-    setIsLoadingQuote(true);
-    setError(null);
-    setWarning(null);
-
-    try {
-      const tradeParameters = {
-        sell:
-          tradeType === 'buy'
-            ? { type: 'eth' as const }
-            : { type: 'erc20' as const, address: novel.coinAddress as Address },
-        buy:
-          tradeType === 'buy'
-            ? { type: 'erc20' as const, address: novel.coinAddress as Address }
-            : { type: 'eth' as const },
-        amountIn: parseEther(amount),
-        slippage: 0.05, // 5% slippage tolerance
-        sender: account.address as Address,
-      };
-
-      console.log('Getting quote for trade parameters:', tradeParameters);
-
-      // Get real quote from the SDK
-      const quote = await createTradeCall(tradeParameters);
-
-      console.log('Real quote response:', quote);
-
-      // Extract the output amount from the quote
-      // The exact structure may vary, so we'll check multiple possible fields
-      if (quote && typeof quote === 'object') {
-        const possibleOutputFields = [
-          'amountOut',
-          'outputAmount',
-          'quote',
-          'amountReceived',
-          'expectedOutput',
-          'estimatedOutput',
-        ];
-
-        let outputAmount;
-        for (const field of possibleOutputFields) {
-          if ((quote as any)[field]) {
-            outputAmount = (quote as any)[field];
-            console.log(`Found output amount in field '${field}':`, outputAmount);
-            break;
-          }
-        }
-
-        // Also check if quote has nested structures
-        if (!outputAmount && (quote as any).call) {
-          console.log('Quote call structure:', (quote as any).call);
-        }
-
-        if (outputAmount) {
-          setEstimatedOutput(outputAmount.toString());
-          setError(null);
-          setWarning(null);
-        } else {
-          // If no output amount found, log the quote structure for debugging
-          console.log('Available quote fields:', Object.keys(quote));
-          console.log('Full quote object:', quote);
-          setWarning('Quote received but unable to extract output amount');
-          setEstimatedOutput('');
-        }
-      } else {
-        console.log('Unexpected quote response type:', typeof quote);
-        setWarning('Unexpected quote response format');
-        setEstimatedOutput('');
-      }
-    } catch (error: any) {
-      console.error('Real quote error:', error);
-      setEstimatedOutput('');
-
-      // Provide helpful error messages based on error type
-      if (error.message?.includes('Quote failed') || error.message?.includes('500')) {
-        setWarning(
-          'Unable to get quote - this token may not be tradeable on Base Sepolia or lacks liquidity'
-        );
-      } else if (error.message?.includes('network') || error.message?.includes('Network')) {
-        setWarning('Network error while getting quote - please check connection');
-      } else if (error.message?.includes('insufficient')) {
-        setWarning('Insufficient liquidity for this trade amount');
-      } else if (error.message?.includes('unsupported') || error.message?.includes('Unsupported')) {
-        setWarning('Base Sepolia may not be supported yet - SDK currently supports Base mainnet');
-      } else {
-        setWarning(`Quote error: ${error.message || 'Unable to get price estimate'}`);
-      }
-    } finally {
-      setIsLoadingQuote(false);
-    }
-  };
-
-  // Trigger estimation when amount or trade type changes
-  useEffect(() => {
-    if (amount && parseFloat(amount) > 0 && account && novel.coinAddress) {
-      const timeoutId = setTimeout(estimateOutput, 800); // Slightly longer delay for API calls
-      return () => clearTimeout(timeoutId);
-    } else {
-      setEstimatedOutput('');
-      setWarning(null);
-    }
-  }, [amount, tradeType, account, novel.coinAddress]);
+  // Remove this duplicate useEffect block (lines 508-516)
+  // useEffect(() => {
+  //   if (amount && parseFloat(amount) > 0 && account && novel.coinAddress) {
+  //     const timeoutId = setTimeout(estimateOutput, 800);
+  //     return () => clearTimeout(timeoutId);
+  //   } else {
+  //     setEstimatedOutput('');
+  //     setWarning(null);
+  //   }
+  // }, [amount, tradeType, account, novel.coinAddress]);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">

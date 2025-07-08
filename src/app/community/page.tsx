@@ -102,7 +102,7 @@ export default function CommunityPage() {
           {novels.length === 0 ? (
             <div className="rounded-3xl bg-white/50 py-12 text-center backdrop-blur-sm">
               <BookOpen className="mx-auto mb-4 h-16 w-16 text-gray-400" />
-              <p className="text-lg text-gray-500">No stories seeking public feedback found.</p>
+              <p className="text-lg text-gray-500">No stories seeking public feedback</p>
             </div>
           ) : (
             <div className="grid grid-cols-1 gap-8 md:grid-cols-2 lg:grid-cols-3">

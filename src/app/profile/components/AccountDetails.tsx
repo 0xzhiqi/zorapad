@@ -3,7 +3,7 @@
 import { useState, useTransition } from 'react';
 
 // Import section - add ScreenShare to the imports
-import { CheckCircle, Edit3, LogOut, ScreenShare, User, Wallet, X } from 'lucide-react';
+import { CheckCircle, Edit3, LogOut, ScreenShare, User, Wallet } from 'lucide-react';
 import { Session } from 'next-auth';
 import { useSession } from 'next-auth/react';
 

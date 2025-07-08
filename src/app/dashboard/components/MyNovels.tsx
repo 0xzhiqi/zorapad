@@ -83,7 +83,7 @@ const MyNovels = () => {
   };
 
   const BooleanIndicator = ({ value }: { value: boolean }) => (
-    <div className="flex items-center justify-start">
+    <div className="flex items-center justify-center">
       {value ? (
         <div className="flex h-6 items-center justify-center rounded-full bg-green-100 p-1">
           <Check className="h-3 w-3 text-green-800" />
@@ -227,10 +227,10 @@ const MyNovels = () => {
                           <p className="truncate font-medium text-gray-900">{novel.title}</p>
                         </div>
                       </td>
-                      <td className="px-4 py-4">
+                      <td className="px-4 py-4 text-center">
                         <BooleanIndicator value={novel.seekPublicFeedback} />
                       </td>
-                      <td className="px-4 py-4">
+                      <td className="px-4 py-4 text-center">
                         <BooleanIndicator value={novel.published} />
                       </td>
                       <td className="px-4 py-4 text-center">

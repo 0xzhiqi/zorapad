@@ -231,7 +231,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   callbacks: {
     async jwt({ token, user }) {
       if (user) {
-        token.walletAddress = (user as any).walletAddress;
+        token.walletAddress = user.walletAddress;
         token.sub = user.id; // Store user ID in token
       }
       return token;
@@ -247,14 +247,13 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             walletAddress: true,
           },
         });
-        
         if (freshUser) {
           session.user.id = freshUser.id;
           session.user.name = freshUser.name;
-          (session.user as any).walletAddress = freshUser.walletAddress;
+          session.user.walletAddress = freshUser.walletAddress || undefined;
         } else {
           // Fallback to token data if user not found
-          (session.user as any).walletAddress = token.walletAddress;
+          session.user.walletAddress = token.walletAddress;
           session.user.id = token.sub as string;
         }
       }

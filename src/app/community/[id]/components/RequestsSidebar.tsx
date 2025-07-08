@@ -7,13 +7,11 @@ import {
   CircleCheckBig,
   CircleDollarSign,
   Crown,
-  HandCoins,
   Loader2,
   MessageCircleQuestion,
   Reply,
   Send,
   ThumbsUp,
-  TimerOff,
   Wallet,
   X,
 } from 'lucide-react';
@@ -21,7 +19,7 @@ import { useSession } from 'next-auth/react';
 import { getContract, prepareContractCall, sendTransaction } from 'thirdweb';
 import { baseSepolia } from 'thirdweb/chains';
 import { useActiveAccount, useReadContract } from 'thirdweb/react';
-import { bytesToHex, keccak256, stringToBytes } from 'viem';
+import { keccak256, stringToBytes } from 'viem';
 
 import { client } from '@/lib/thirdweb';
 
@@ -264,7 +262,6 @@ function UpvoteDialog({
   onSuccess,
   replyStats,
   setReplyStats,
-  userUpvotes,
   setUserUpvotes,
 }: UpvoteDialogProps) {
   const [selectedOption, setSelectedOption] = useState<'upvote' | 'stake' | null>(null);
@@ -355,6 +352,7 @@ function UpvoteDialog({
 
     setIsProcessing(true);
     setCurrentStep('Initiating upvote');
+    console.log(currentStep);
 
     // Optimistically update upvote count
     updateReplyStatsOptimistically(replyId, {
@@ -689,6 +687,7 @@ export default function RequestsSidebar({
   const { data: session } = useSession();
   const [internalReplyingTo, setInternalReplyingTo] = useState<string | null>(null);
   const [replyContent, setReplyContent] = useState('');
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [submittingReply, setSubmittingReply] = useState(false);
   const [upvoteDialogOpen, setUpvoteDialogOpen] = useState(false);
   const [awardDialogOpen, setAwardDialogOpen] = useState(false);
@@ -749,18 +748,18 @@ export default function RequestsSidebar({
   };
 
   // Add a new error handler for reverting optimistic updates
-  const handleUpvoteError = (replyId: string, originalStats: ReplyStats) => {
-    // Revert optimistic updates if server call fails
-    setReplyStats((prev) => ({
-      ...prev,
-      [replyId]: originalStats,
-    }));
-    setUserUpvotes((prev) => {
-      const newSet = new Set(prev);
-      newSet.delete(replyId);
-      return newSet;
-    });
-  };
+  // const handleUpvoteError = (replyId: string, originalStats: ReplyStats) => {
+  //   // Revert optimistic updates if server call fails
+  //   setReplyStats((prev) => ({
+  //     ...prev,
+  //     [replyId]: originalStats,
+  //   }));
+  //   setUserUpvotes((prev) => {
+  //     const newSet = new Set(prev);
+  //     newSet.delete(replyId);
+  //     return newSet;
+  //   });
+  // };
 
   const handleAwardSuccess = () => {
     // Update the specific request to show it's been awarded
@@ -1128,7 +1127,7 @@ export default function RequestsSidebar({
                       {/* Highlighted text */}
                       <div className="mb-3 rounded-lg bg-green-50 p-3">
                         <p className="text-sm font-medium text-green-800">
-                          "{request.highlightedText}"
+                          &ldquo;{request.highlightedText}&rdquo;
                         </p>
                       </div>
 

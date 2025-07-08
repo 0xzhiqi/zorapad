@@ -4,9 +4,7 @@ import { useEffect, useState } from 'react';
 
 import {
   ArrowRight,
-  BookOpen,
   BookOpenCheck,
-  Check,
   CircleCheckBig,
   Coins,
   Gift,
@@ -17,7 +15,6 @@ import {
   TextSearch,
   TrendingUp,
   Unplug,
-  Users,
 } from 'lucide-react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
@@ -628,10 +625,12 @@ const MyRewards = () => {
           <Gift className="h-6 w-6 text-purple-600" />
           <h2 className="text-xl font-semibold text-gray-900">My Rewards</h2>
         </div>
-        <div className="text-center">
-          <div className="flex flex-col items-center justify-center space-y-2">
-            <Loader2 className="h-5 w-5 animate-spin text-gray-500" />
-            <p className="text-gray-500">Loading rewards...</p>
+        <div className="rounded-lg border border-gray-200 bg-gray-50 p-8">
+          <div className="text-center">
+            <div className="flex flex-col items-center justify-center space-y-2">
+              <Loader2 className="h-5 w-5 animate-spin text-gray-500" />
+              <p className="text-gray-500">Loading rewards...</p>
+            </div>
           </div>
         </div>
       </div>
@@ -871,8 +870,8 @@ const MyRewards = () => {
               </div>
               <p className="mb-2 text-lg font-medium text-gray-700">No Staking Rewards </p>
               <p className="mx-auto mb-6 max-w-md text-sm text-gray-600">
-                Stake the story's coins on responses you love to earn rewards and let author know
-                what the community really vibes with!
+                Stake the story&apos;s coins on responses you love to earn rewards and let author
+                know what the community really vibes with!
               </p>
               <button
                 onClick={() => router.push('/community')}
@@ -974,8 +973,8 @@ const MyRewards = () => {
               </div>
               <p className="mb-2 text-lg font-medium text-gray-700">No Staking Rewards</p>
               <p className="mx-auto mb-6 max-w-md text-sm text-gray-600">
-                Stake the story's coins on comments you like to earn rewards and let the author know
-                they are a hit with the community!
+                Stake the story&apos;s coins on comments you like to earn rewards and let the author
+                know they are a hit with the community!
               </p>
               <button
                 onClick={() => router.push('/community')}
@@ -1071,7 +1070,7 @@ const MyRewards = () => {
               <p className="mb-2 text-lg font-medium text-gray-700">No Staking Rewards</p>
               <p className="mx-auto mb-6 max-w-md text-sm text-gray-600">
                 Stake coins on published stories you like to support the author and earn a share of
-                the stories' revenue
+                the stories&apos; revenue
               </p>
               <button
                 onClick={() => router.push('/explore')}

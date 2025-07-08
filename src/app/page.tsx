@@ -10,10 +10,8 @@ import {
   Heart,
   MessageCircle,
   Pen,
-  Star,
   TrendingUp,
   Users,
-  Zap,
 } from 'lucide-react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
@@ -30,7 +28,6 @@ interface TrendingNovel {
 
 const Homepage = () => {
   const [isVisible, setIsVisible] = useState(false);
-  const [activeFeature, setActiveFeature] = useState(0);
   const [trendingNovels, setTrendingNovels] = useState<TrendingNovel[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const { data: session } = useSession();
@@ -287,8 +284,8 @@ const Homepage = () => {
           ref={connectButtonRef}
           className="pointer-events-none fixed top-0 left-0 -z-10 opacity-0"
         >
-          <ConnectButton 
-            className="[&>div>button]:opacity-0" 
+          <ConnectButton
+            className="[&>div>button]:opacity-0"
             onSuccessfulLogin={() => router.push('/dashboard')}
           />
         </div>

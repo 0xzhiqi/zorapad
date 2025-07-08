@@ -1,11 +1,11 @@
 import { getCoin } from '@zoralabs/coins-sdk';
-import { NextRequest, NextResponse } from 'next/server';
-import { base, baseSepolia } from 'viem/chains';
+import { NextResponse } from 'next/server';
+import { baseSepolia } from 'viem/chains';
 
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
     const session = await auth();
 

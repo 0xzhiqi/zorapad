@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 
 import { Loader2 } from 'lucide-react';
 import { signIn, signOut, useSession } from 'next-auth/react';
@@ -49,7 +49,7 @@ const LoginButton: React.FC<ConnectButtonProps> = ({ className, onSuccessfulLogi
   const buttonBorderColor = isHomepage ? 'border-white/30' : 'border-purple-200';
   const buttonBgColor = isHomepage ? 'bg-white/10' : 'bg-purple-100';
 
-  const handleWalletAuth = async () => {
+  const handleWalletAuth = useCallback(async () => {
     if (!account?.address || session || isAuthenticating) return;
 
     setIsAuthenticating(true);
@@ -111,7 +111,7 @@ const LoginButton: React.FC<ConnectButtonProps> = ({ className, onSuccessfulLogi
       }
 
       console.log('Client: Authentication successful');
-      
+
       // Handle redirect after successful authentication
       if (onSuccessfulLogin) {
         onSuccessfulLogin();
@@ -119,15 +119,17 @@ const LoginButton: React.FC<ConnectButtonProps> = ({ className, onSuccessfulLogi
         // Only redirect to dashboard if we're on homepage and user just signed in
         router.push('/dashboard');
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Client: Wallet authentication error:', error);
-      alert(
-        `Authentication failed: ${error.message || 'Please ensure you are signing with the correct wallet account.'}`
-      );
+      const errorMessage =
+        error instanceof Error
+          ? error.message
+          : 'Please ensure you are signing with the correct wallet account.';
+      alert(`Authentication failed: ${errorMessage}`);
     } finally {
       setIsAuthenticating(false);
     }
-  };
+  }, [account, session, isAuthenticating, activeChain?.id, onSuccessfulLogin, isHomepage, router]);
 
   // Auto-authenticate when wallet connects
   useEffect(() => {
@@ -137,7 +139,7 @@ const LoginButton: React.FC<ConnectButtonProps> = ({ className, onSuccessfulLogi
       }, 500);
       return () => clearTimeout(timer);
     }
-  }, [account?.address, session, status]);
+  }, [account?.address, session, status, handleWalletAuth]);
 
   // Handle account changes
   useEffect(() => {

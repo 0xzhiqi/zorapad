@@ -147,6 +147,7 @@ function UpvoteDialog({ isOpen, onClose, itemId, itemType, novel, onSuccess }: U
 
     setIsProcessing(true);
     setCurrentStep('Initiating upvote');
+    console.log(currentStep);
 
     try {
       const endpoint =
@@ -898,13 +899,13 @@ export default function CommentsSidebar({
     if (!replyContent.trim()) return;
 
     setSubmittingReply(true);
-    const tempReply = {
-      id: `temp-${Date.now()}`,
-      content: replyContent.trim(),
-      user: { name: 'You', email: '' },
-      createdAt: new Date().toISOString(),
-      isOptimistic: true,
-    };
+    // const tempReply = {
+    //   id: `temp-${Date.now()}`,
+    //   content: replyContent.trim(),
+    //   user: { name: 'You', email: '' },
+    //   createdAt: new Date().toISOString(),
+    //   isOptimistic: true,
+    // };
 
     // Optimistic update
     const originalContent = replyContent;
@@ -915,6 +916,7 @@ export default function CommentsSidebar({
       await onReply(commentId, originalContent);
     } catch (error) {
       // Revert on error
+      console.error('Reply submission error:', error);
       setReplyContent(originalContent);
       setReplyingTo(commentId);
     } finally {
@@ -986,7 +988,7 @@ export default function CommentsSidebar({
                       {/* Highlighted text */}
                       <div className="mb-3 rounded-lg bg-purple-50 p-3">
                         <p className="text-sm font-medium text-purple-800">
-                          "{comment.highlightedText}"
+                          &ldquo;{comment.highlightedText}&rdquo;
                         </p>
                       </div>
 

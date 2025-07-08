@@ -45,11 +45,12 @@ const LaunchNewNovelPage = () => {
   const [isLaunching, setIsLaunching] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
-  const [currentNovelId, setCurrentNovelId] = useState<string | null>(null);
+  // Remove this unused variable:
+  // const [currentNovelId, setCurrentNovelId] = useState<string | null>(null);
   const [showSuccessPopup, setShowSuccessPopup] = useState(false);
 
   const [progressSteps, setProgressSteps] = useState<ProgressStep[]>([
-    { id: 1, title: 'Launching Novel', status: 'pending' },
+    { id: 1, title: 'Launching Story', status: 'pending' },
     { id: 2, title: 'Launching Coin', status: 'pending' },
     { id: 3, title: 'Receiving Coin', status: 'pending' },
     { id: 4, title: 'Finalising Details', status: 'pending' },
@@ -118,7 +119,7 @@ const LaunchNewNovelPage = () => {
 
     // Reset progress steps
     setProgressSteps([
-      { id: 1, title: 'Launching Novel', status: 'pending' },
+      { id: 1, title: 'Launching Story', status: 'pending' },
       { id: 2, title: 'Launching Coin', status: 'pending' },
       { id: 3, title: 'Receiving Coin', status: 'pending' },
       { id: 4, title: 'Finalising Details', status: 'pending' },
@@ -148,11 +149,12 @@ const LaunchNewNovelPage = () => {
 
       if (!initialNovelResult.success || !initialNovelResult.novel) {
         updateStepStatus(1, 'error');
-        throw new Error(initialNovelResult.error || 'Failed to create novel entry');
+        throw new Error(initialNovelResult.error || 'Failed to create story entry');
       }
 
       novelId = initialNovelResult.novel.id;
-      setCurrentNovelId(novelId);
+      // Remove this line since currentNovelId is no longer used:
+      // setCurrentNovelId(novelId);
       updateStepStatus(1, 'completed');
 
       // Step 2: Create coin with novel ID as IPFS URI
@@ -220,7 +222,7 @@ const LaunchNewNovelPage = () => {
         currency: DeployCurrency.ETH,
       };
 
-      console.log('Creating coin with novel ID as IPFS:', coinParams);
+      console.log('Creating coin with story ID as IPFS:', coinParams);
 
       // Create the coin using Zora SDK
       const coinResult = await createCoin(coinParams, walletClient, publicClient, {
@@ -236,10 +238,10 @@ const LaunchNewNovelPage = () => {
       coinAddress = coinResult.address;
       updateStepStatus(2, 'completed');
 
-      // Step 3: Deploy Novel contract using Thirdweb with private key wallet
+      // Step 3: Deploy Story contract using Thirdweb with private key wallet
       updateStepStatus(3, 'active');
 
-      console.log('Deploying Novel contract with params:', {
+      console.log('Deploying Story contract with params:', {
         coinAddress: coinAddress,
         creatorAddress: smartWalletAddress,
       });
@@ -253,7 +255,7 @@ const LaunchNewNovelPage = () => {
 
         console.log('Using deployment account:', deploymentAccount.address);
 
-        // Deploy the Novel contract using the private key account
+        // Deploy the Story contract using the private key account
         const contractAddress = await deployContract({
           client,
           chain: baseSepoliaChain,
@@ -274,7 +276,7 @@ const LaunchNewNovelPage = () => {
 
         // The contractAddress should now be the actual contract address
         const finalContractAddress = contractAddress;
-        console.log('Novel contract deployed successfully:', finalContractAddress);
+        console.log('Story contract deployed successfully:', finalContractAddress);
         updateStepStatus(3, 'completed');
 
         // Step 4: Update novel with both coin and contract details
@@ -289,11 +291,11 @@ const LaunchNewNovelPage = () => {
         });
 
         if (!updateResult.success) {
-          throw new Error(updateResult.error || 'Failed to update novel with contract details');
+          throw new Error(updateResult.error || 'Failed to update story with contract details');
         }
 
         updateStepStatus(4, 'completed');
-        setSuccess('Novel, coin, and contract launched successfully!');
+        setSuccess('Story, coin, and contract launched successfully!');
 
         // Show success popup
         setShowSuccessPopup(true);
@@ -302,21 +304,23 @@ const LaunchNewNovelPage = () => {
         setTimeout(() => {
           router.push(`/edit-novel/${novelId}`);
         }, 2000);
-      } catch (contractError: any) {
+      } catch (contractError: unknown) {
         console.error('Contract deployment error:', contractError);
         updateStepStatus(3, 'error');
-        throw new Error(`Contract deployment failed: ${contractError.message}`);
+        throw new Error(
+          `Contract deployment failed: ${contractError instanceof Error ? contractError.message : 'Unknown error'}`
+        );
       }
-    } catch (error: any) {
-      console.error('Error in novel creation process:', error);
+    } catch (error: unknown) {
+      console.error('Error in story creation process:', error);
 
-      // If we have a novel ID and deployment failed, delete the novel
+      // If we have a story ID and deployment failed, delete the story
       if (novelId) {
         try {
           await deleteNovel(novelId);
-          console.log('Cleaned up novel entry after deployment failure');
+          console.log('Cleaned up story entry after deployment failure');
         } catch (deleteError) {
-          console.error('Failed to clean up novel entry:', deleteError);
+          console.error('Failed to clean up story entry:', deleteError);
         }
       }
 
@@ -326,7 +330,9 @@ const LaunchNewNovelPage = () => {
         updateStepStatus(currentActiveStep.id, 'error');
       }
 
-      setError(`Failed to launch novel: ${error.message || 'Unknown error occurred'}`);
+      setError(
+        `Failed to launch story: ${error instanceof Error ? error.message : 'Unknown error occurred'}`
+      );
     } finally {
       setIsLaunching(false);
     }
@@ -364,10 +370,8 @@ const LaunchNewNovelPage = () => {
               <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-r from-pink-500 to-violet-500">
                 <BookOpen className="h-8 w-8 text-white" />
               </div>
-              <h1 className="mb-2 text-4xl font-bold text-purple-600">Launch New Novel</h1>
-              <p className="text-gray-600">
-                Bring your story to life with a coin and contract on ZoraPad
-              </p>
+              <h1 className="mb-2 text-4xl font-bold text-purple-600">Launch New Story</h1>
+              <p className="text-gray-600">Bring your story to life with a coin on ZoraPad</p>
             </div>
             {/* Progress Steps - Show only when launching */}
             {isLaunching && (
@@ -428,7 +432,7 @@ const LaunchNewNovelPage = () => {
               </div>
             )}
             <form onSubmit={handleSubmit} className="space-y-6">
-              {/* Novel Title */}
+              {/* Story Title */}
               <div>
                 <label className="mb-2 block text-sm font-bold text-gray-700">Title</label>
                 <input
@@ -436,7 +440,7 @@ const LaunchNewNovelPage = () => {
                   name="novelTitle"
                   value={formData.novelTitle}
                   onChange={handleInputChange}
-                  placeholder="Enter your novel title (E.g. My New Novel)"
+                  placeholder="Enter your story title (e.g. My New Story)"
                   className="w-full rounded-lg border border-gray-300 bg-gray-50 px-4 py-3 text-gray-900 focus:border-purple-500 focus:ring-2 focus:ring-purple-200 focus:outline-none"
                   required
                   disabled={isLaunching}
@@ -451,7 +455,7 @@ const LaunchNewNovelPage = () => {
                   name="coinName"
                   value={formData.coinName}
                   onChange={handleInputChange}
-                  placeholder="Enter your coin name (e.g. My Novel Coin)"
+                  placeholder="Enter your coin name (e.g. My Story Coin)"
                   className="w-full rounded-lg border border-gray-300 bg-gray-50 px-4 py-3 text-gray-900 focus:border-purple-500 focus:ring-2 focus:ring-purple-200 focus:outline-none"
                   required
                   disabled={isLaunching}
@@ -466,7 +470,7 @@ const LaunchNewNovelPage = () => {
                   name="coinSymbol"
                   value={formData.coinSymbol}
                   onChange={handleInputChange}
-                  placeholder="Enter your coin symbol (e.g. NOVEL)"
+                  placeholder="Enter your coin symbol (e.g. STORY)"
                   className="w-full rounded-lg border border-gray-300 bg-gray-50 px-4 py-3 text-gray-900 focus:border-purple-500 focus:ring-2 focus:ring-purple-200 focus:outline-none"
                   maxLength={10}
                   required
@@ -544,7 +548,7 @@ const LaunchNewNovelPage = () => {
                       <span>Launching...</span>
                     </>
                   ) : (
-                    <span>Launch My Novel ✨</span>
+                    <span>Launch My Story ✨</span>
                   )}
                 </button>
               </div>

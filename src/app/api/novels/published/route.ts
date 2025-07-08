@@ -1,10 +1,10 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { baseSepolia } from 'viem/chains';
 import { getCoin } from '@zoralabs/coins-sdk';
+import { NextResponse } from 'next/server';
+import { baseSepolia } from 'viem/chains';
 
 import { prisma } from '@/lib/prisma';
 
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
     // Fetch novels with published = true
     const novels = await prisma.novel.findMany({

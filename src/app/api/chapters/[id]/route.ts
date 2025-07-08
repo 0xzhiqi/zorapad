@@ -59,7 +59,14 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       return NextResponse.json({ error: 'Chapter not found' }, { status: 404 });
     }
 
-    const updateData: any = {};
+    const updateData: Partial<{
+      title: string;
+      published: boolean;
+      order: number;
+      wordCount: number;
+      contentUrl: string;
+      contentPath: string;
+    }> = {};
 
     if (body.title !== undefined) updateData.title = body.title;
     if (body.published !== undefined) updateData.published = body.published;

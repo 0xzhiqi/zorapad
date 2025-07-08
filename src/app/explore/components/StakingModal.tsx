@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 
 import { AlertTriangle, CheckCircle, Wallet, X } from 'lucide-react';
 import { prepareContractCall, sendTransaction, waitForReceipt } from 'thirdweb';
@@ -36,7 +36,7 @@ export default function StakingModal({ isOpen, onClose, novel }: StakingModalPro
   const wallet = useActiveWallet();
   const connectionStatus = useActiveWalletConnectionStatus();
 
-  const erc20Abi = [
+  const erc20Abi = useMemo(() => [
     {
       inputs: [
         { name: '_spender', type: 'address' },
@@ -54,7 +54,7 @@ export default function StakingModal({ isOpen, onClose, novel }: StakingModalPro
       stateMutability: 'view',
       type: 'function',
     },
-  ] as const;
+  ] as const, []);
 
   const novelAbi = [
     {
@@ -205,8 +205,9 @@ export default function StakingModal({ isOpen, onClose, novel }: StakingModalPro
         resetModal();
         onClose();
       }, 2000);
-    } catch (e: any) {
-      setError(e.message);
+    } catch (e: unknown) {
+      const errorMessage = e instanceof Error ? e.message : 'An unknown error occurred';
+      setError(errorMessage);
       stakeSteps.forEach((s) => updateStepStatus(s.id, 'error'));
       setIsStaking(false);
     }

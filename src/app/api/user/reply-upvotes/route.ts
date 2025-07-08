@@ -1,8 +1,9 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
+
 import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
     const session = await auth();
     if (!session?.user?.id) {
@@ -33,16 +34,16 @@ export async function GET(request: NextRequest) {
 
     // Combine upvotes and stakes
     const upvotedReplyIds = upvotes
-      .map(upvote => upvote.replyId)
+      .map((upvote) => upvote.replyId)
       .filter((id): id is string => id !== null);
-    
+
     const stakedReplyIds = stakes
-      .map(stake => stake.replyId)
+      .map((stake) => stake.replyId)
       .filter((id): id is string => id !== null);
 
     // Remove duplicates using Set
     const allReplyIds = [...new Set([...upvotedReplyIds, ...stakedReplyIds])];
-    
+
     return NextResponse.json(allReplyIds);
   } catch (error) {
     console.error('Error fetching user reply upvotes:', error);

@@ -16,7 +16,7 @@ ZoraPad is a platform for collaborative story writing that leverages Zora's late
 
 #### 2. **Token Trading**
 
-- Uses `tradeCoin` function from Zora's Coin v4 SDK
+- Uses `tradeCoin` and `createTradeCall` function from Zora's Coin v4 SDK
 - Built-in trading interface accessible from the explore page
 - Buy/sell functionality with real-time price calculations
 
@@ -48,7 +48,7 @@ ZoraPad is a platform for collaborative story writing that leverages Zora's late
 #### 3. **Revenue Sharing**
 
 - `stake` : Anyone can stake tokens on a published story to earn a share of revenue from it
-- `claimRewards` : Revenue earned exogeneously e.g. from advertisements are transferred into the staking pool from which stakers can claim
+- `claimRewards` : Revenue earned exogenously e.g. from advertisements are transferred into the staking pool from which stakers can claim
 
 ## Network Configuration
 

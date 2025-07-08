@@ -1,8 +1,9 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
-import { bucket } from '@/lib/google-cloud-storage-client';
+import { NextResponse } from 'next/server';
 
-export async function GET(request: NextRequest) {
+import { bucket } from '@/lib/google-cloud-storage-client';
+import { prisma } from '@/lib/prisma';
+
+export async function GET() {
   try {
     // Fetch all published novels
     const allNovels = await prisma.novel.findMany({
@@ -42,17 +43,16 @@ export async function GET(request: NextRequest) {
     const novelsWithContent = await Promise.all(
       randomNovels.map(async (novel) => {
         let firstChapterContent = '';
-        
+
         if (novel.chapters.length > 0 && novel.chapters[0].contentPath) {
           try {
             const file = bucket.file(novel.chapters[0].contentPath);
             const [content] = await file.download();
             const fullContent = content.toString('utf-8');
-            
+
             // Get first 100 characters
-            firstChapterContent = fullContent.length > 100 
-              ? fullContent.substring(0, 100) + '...'
-              : fullContent;
+            firstChapterContent =
+              fullContent.length > 100 ? fullContent.substring(0, 100) + '...' : fullContent;
           } catch (error) {
             console.error(`Error fetching content for chapter ${novel.chapters[0].id}:`, error);
             firstChapterContent = 'Content not available...';
