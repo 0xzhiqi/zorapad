@@ -50,13 +50,13 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     }, BigInt(0));
 
     // Total upvotes = regular upvotes + stake upvotes
-    // const totalUpvotes = upvoteCount + stakeCount;
+    const totalUpvotes = upvoteCount + stakeCount;
 
     // Check if comment is awarded
     const isAwarded = !!comment?.awardTransactionHash;
 
     return NextResponse.json({
-      upvotes: upvoteCount,
+      upvotes: totalUpvotes, // Changed from upvoteCount to totalUpvotes
       stakeCount: stakeCount,
       totalStaked: totalStaked.toString(),
       bountyAmount: comment?.bountyAmount ? parseFloat(comment.bountyAmount) : undefined,

@@ -14,18 +14,50 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     const body = await request.json();
     const { amount, transactionHash } = body;
 
-    // Create stake record
-    const stake = await prisma.commentStake.create({
-      data: {
+    // Check if user already staked
+    const existingStake = await prisma.commentStake.findFirst({
+      where: {
         commentId,
         userId: session.user.id,
-        stakeAmount: amount,
-        transactionHash,
-        contractConfirmed: true,
       },
     });
 
-    return NextResponse.json({ success: true, stake });
+    if (existingStake) {
+      return NextResponse.json({ error: 'Already staked' }, { status: 400 });
+    }
+
+    // Create both stake record and upvote record in a transaction
+    const result = await prisma.$transaction(async (tx) => {
+      // Create stake record
+      const stake = await tx.commentStake.create({
+        data: {
+          commentId,
+          userId: session.user.id,
+          stakeAmount: amount,
+          transactionHash,
+          contractConfirmed: true,
+        },
+      });
+
+      // Create upvote record if it doesn't exist (upsert)
+      const upvote = await tx.commentUpvote.upsert({
+        where: {
+          commentId_userId: {
+            commentId,
+            userId: session.user.id,
+          },
+        },
+        update: {}, // Don't update anything if it exists
+        create: {
+          commentId,
+          userId: session.user.id,
+        },
+      });
+
+      return { stake, upvote };
+    });
+
+    return NextResponse.json({ success: true, stake: result.stake, upvote: result.upvote });
   } catch (error) {
     console.error('Error processing comment stake:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
