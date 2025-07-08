@@ -18,17 +18,24 @@ import { useRouter } from 'next/navigation';
 
 import ConnectButton from './components/LoginButton';
 
-// Add interface for trending novel
+// Base interface for trending novel from API
 interface TrendingNovel {
   id: string;
   title: string;
   authorName: string;
+  chapterId: string;
   preview: string;
+}
+
+// Enhanced interface for trending novel with content loading state
+interface TrendingNovelWithContent extends TrendingNovel {
+  contentPreview: string;
+  isContentLoaded: boolean;
 }
 
 const Homepage = () => {
   const [isVisible, setIsVisible] = useState(false);
-  const [trendingNovels, setTrendingNovels] = useState<TrendingNovel[]>([]);
+  const [trendingNovels, setTrendingNovels] = useState<TrendingNovelWithContent[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const { data: session } = useSession();
   const router = useRouter();
@@ -40,17 +47,104 @@ const Homepage = () => {
   }, []);
 
   const fetchTrendingNovels = async () => {
+    console.log('🔍 Starting to fetch trending novels...');
     try {
       const response = await fetch('/api/novels/trending');
+      console.log('📡 Trending novels response status:', response.status);
+
       if (response.ok) {
-        const novels = await response.json();
-        setTrendingNovels(novels);
+        const novels: TrendingNovel[] = await response.json();
+        console.log('📚 Fetched novels:', novels);
+
+        if (novels.length === 0) {
+          console.log('⚠️ No novels returned from API');
+          setIsLoading(false);
+          return;
+        }
+
+        // Initialize novels with loading state
+        const novelsWithContent: TrendingNovelWithContent[] = novels.map((novel) => ({
+          ...novel,
+          contentPreview: 'Loading preview...',
+          isContentLoaded: false,
+        }));
+
+        console.log('🔄 Setting novels with loading state:', novelsWithContent);
+        setTrendingNovels(novelsWithContent);
+
+        // Fetch content previews for each novel
+        console.log('🔍 Starting to fetch content for each novel...');
+        const updatedNovels = await Promise.all(
+          novelsWithContent.map(async (novel, index) => {
+            console.log(
+              `📖 Fetching content for novel ${index + 1}:`,
+              novel.title,
+              'Chapter ID:',
+              novel.chapterId
+            );
+
+            try {
+              const contentResponse = await fetch(`/api/chapters/${novel.chapterId}/content`);
+              console.log(`📡 Content response for ${novel.title}:`, contentResponse.status);
+
+              if (contentResponse.ok) {
+                const contentData = await contentResponse.json();
+                console.log(`📄 Content data for ${novel.title}:`, contentData);
+
+                const fullContent = contentData.content || '';
+
+                // Extract text content and create preview
+                const textContent = fullContent
+                  .replace(/<[^>]*>/g, '') // Remove HTML tags
+                  .replace(/\s+/g, ' ') // Normalize whitespace
+                  .trim();
+
+                const preview =
+                  textContent.length > 150
+                    ? textContent.substring(0, 150) + '...'
+                    : textContent || 'No preview available.';
+
+                console.log(`✅ Preview for ${novel.title}:`, preview);
+
+                return {
+                  ...novel,
+                  contentPreview: preview,
+                  isContentLoaded: true,
+                };
+              } else {
+                const errorText = await contentResponse.text();
+                console.error(
+                  `❌ Failed to fetch content for chapter ${novel.chapterId}:`,
+                  contentResponse.status,
+                  errorText
+                );
+                return {
+                  ...novel,
+                  contentPreview: 'Preview not available.',
+                  isContentLoaded: true,
+                };
+              }
+            } catch (error) {
+              console.error(`💥 Error fetching content for novel ${novel.id}:`, error);
+              return {
+                ...novel,
+                contentPreview: 'Error loading preview.',
+                isContentLoaded: true,
+              };
+            }
+          })
+        );
+
+        console.log('🎉 Final updated novels:', updatedNovels);
+        setTrendingNovels(updatedNovels);
       } else {
-        console.error('Failed to fetch trending novels');
+        const errorText = await response.text();
+        console.error('❌ Failed to fetch trending novels:', response.status, errorText);
       }
     } catch (error) {
-      console.error('Error fetching trending novels:', error);
+      console.error('💥 Error fetching trending novels:', error);
     } finally {
+      console.log('🏁 Setting loading to false');
       setIsLoading(false);
     }
   };
@@ -230,7 +324,13 @@ const Homepage = () => {
                     {novel.title}
                   </h3>
                   <p className="mb-4 text-white/60">by {novel.authorName}</p>
-                  <p className="mb-4 text-sm leading-relaxed text-white/70">{novel.preview}</p>
+                  <p className="mb-4 text-sm leading-relaxed text-white/70">
+                    {novel.isContentLoaded ? (
+                      novel.contentPreview
+                    ) : (
+                      <span className="animate-pulse">Loading preview...</span>
+                    )}
+                  </p>
                   <div className="flex items-center justify-between">
                     <div className="flex items-center space-x-6 text-white/50">
                       <div className="flex items-center space-x-2">

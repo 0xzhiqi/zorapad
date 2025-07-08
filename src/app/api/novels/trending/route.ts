@@ -1,11 +1,10 @@
 import { NextResponse } from 'next/server';
 
-import { bucket } from '@/lib/google-cloud-storage-client';
 import { prisma } from '@/lib/prisma';
 
 export async function GET() {
   try {
-    // Fetch all published novels
+    // Fetch all published novels with their first chapter
     const allNovels = await prisma.novel.findMany({
       where: {
         published: true,
@@ -18,14 +17,11 @@ export async function GET() {
           },
         },
         chapters: {
-          where: {
-            published: true,
-          },
           select: {
             id: true,
             title: true,
-            contentPath: true,
             order: true,
+            wordCount: true,
           },
           orderBy: {
             order: 'asc',
@@ -35,40 +31,27 @@ export async function GET() {
       },
     });
 
+    // Filter novels that have at least one published chapter
+    const novelsWithChapters = allNovels.filter((novel) => novel.chapters.length > 0);
+
     // Shuffle and take 4 random novels
-    const shuffled = allNovels.sort(() => 0.5 - Math.random());
+    const shuffled = novelsWithChapters.sort(() => 0.5 - Math.random());
     const randomNovels = shuffled.slice(0, 4);
 
-    // Fetch content for each novel's first chapter
-    const novelsWithContent = await Promise.all(
-      randomNovels.map(async (novel) => {
-        let firstChapterContent = '';
+    // Return novels with chapter IDs for separate content fetching
+    const novelsWithPreview = randomNovels.map((novel) => {
+      const firstChapter = novel.chapters[0];
 
-        if (novel.chapters.length > 0 && novel.chapters[0].contentPath) {
-          try {
-            const file = bucket.file(novel.chapters[0].contentPath);
-            const [content] = await file.download();
-            const fullContent = content.toString('utf-8');
+      return {
+        id: novel.id,
+        title: novel.title,
+        authorName: novel.author.name || 'Anonymous',
+        chapterId: firstChapter.id, // This will be used to fetch content via /api/chapters/[id]/content
+        preview: `${novel.title} - ${firstChapter.title}`, // Fallback preview
+      };
+    });
 
-            // Get first 100 characters
-            firstChapterContent =
-              fullContent.length > 100 ? fullContent.substring(0, 100) + '...' : fullContent;
-          } catch (error) {
-            console.error(`Error fetching content for chapter ${novel.chapters[0].id}:`, error);
-            firstChapterContent = 'Content not available...';
-          }
-        }
-
-        return {
-          id: novel.id,
-          title: novel.title,
-          authorName: novel.author.name || 'Anonymous',
-          preview: firstChapterContent,
-        };
-      })
-    );
-
-    return NextResponse.json(novelsWithContent);
+    return NextResponse.json(novelsWithPreview);
   } catch (error) {
     console.error('Error fetching trending novels:', error);
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
