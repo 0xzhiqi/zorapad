@@ -413,7 +413,7 @@ const ChapterDropdown = ({
       >
         <span className="truncate text-gray-700">
           {selectedChapter
-            ? `${selectedChapter.title} (Ch. ${selectedChapter.order})`
+            ? `${selectedChapter.title} - Chapter ${selectedChapter.order}`
             : 'Select a chapter to edit'}
         </span>
         <ChevronDown className="h-4 w-4 flex-shrink-0 text-gray-500" />
